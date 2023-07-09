@@ -2,7 +2,7 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable("usulans", {
+    await queryInterface.createTable("Kategoris", {
       id: {
         allowNull: false,
         primaryKey: true,
@@ -11,27 +11,23 @@ module.exports = {
         // autoIncrement: true,
         // type: Sequelize.INTEGER,
       },
-      no_bp: {
-        type: Sequelize.CHAR(36),
-      },
-      nip: {
-        type: Sequelize.CHAR(36),
-      },
-      judul: {
-        type: Sequelize.TEXT,
-      },
-      bidang: {
+      name: {
         type: Sequelize.STRING,
       },
-      jdl_from_dosen: {
+      benefitCost: {
         type: Sequelize.STRING,
       },
-      file_pra_proposal: {
-        type: Sequelize.BLOB,
+      code: {
+        type: Sequelize.STRING,
       },
-      status_usulan: {
-        type: Sequelize.ENUM("confirm", "partially confirm", "no confirm"),
-        defaultValue: "no confirm",
+      skala: {
+        type: Sequelize.STRING,
+      },
+      stringSkala: {
+        type: Sequelize.STRING,
+      },
+      bobot: {
+        type: Sequelize.FLOAT,
       },
       createdAt: {
         allowNull: false,
@@ -41,12 +37,9 @@ module.exports = {
         allowNull: false,
         type: Sequelize.DATE,
       },
-      deletedAt: {
-        type: Sequelize.DATE,
-      },
     });
   },
   async down(queryInterface) {
-    await queryInterface.dropTable("usulans");
+    await queryInterface.dropTable("Kategoris");
   },
 };

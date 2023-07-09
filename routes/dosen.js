@@ -1,4 +1,3 @@
-const express = require("express");
 const scrapeGS = require("../controller/dsn/read/scrapeGS");
 const scrapeSIPEG = require("../controller/dsn/read/scrapeSIPEG");
 const createFn = require("../helpers/mainFn/createFn");
@@ -6,40 +5,38 @@ const deleteFn = require("../helpers/mainFn/deleteFn");
 const multipleFn = require("../helpers/mainFn/multipleFn");
 const readFn = require("../helpers/mainFn/readFn");
 const updateFn = require("../helpers/mainFn/updateFn");
-
 const { dosen } = require("../models");
-
-const router = express.Router();
-
-router.use(express.urlencoded({ extended: true }));
-router.use(express.json());
+const router = require("./router");
 
 // -READ-
-router.get("/getAllDosen", async (req, res) => {
+router.post("/getAllDosen", async (req, res) => {
+  const { page } = req.body;
   try {
     const arrDatas = await readFn({
       model: dosen,
       type: "all",
+      page,
     });
     res.status(200).send({ status: 200, data: arrDatas });
   } catch (e) {
-    res.status(404).send({ status: 404, data: [], message: e?.message });
+    res.status(400).send({ status: 400, data: [], message: e?.message });
   }
 });
 
-router.post("/getDosenById", async (req, res) => {
-  const { id_dosen } = req.body;
+router.post("/getDosenByNIP", async (req, res) => {
+  const { nip } = req.body;
   try {
     // const arrDatas = await getDsnByUID(id_dosen);
     const arrDatas = await readFn({
       model: dosen,
       type: "find",
-      key: "id_dosen",
-      val: id_dosen,
+      where: {
+        nip,
+      },
     });
     res.status(200).send({ status: 200, data: arrDatas });
   } catch (e) {
-    res.status(400).send(e);
+    res.status(400).send({ status: 400, message: e?.message });
   }
 });
 
@@ -49,7 +46,7 @@ router.post("/scrapeGS", async (req, res) => {
     const { dataPenelitian, bidang } = await scrapeGS(gs_url);
     res.status(200).send({ status: 200, penelitian: dataPenelitian, bidang });
   } catch (e) {
-    res.status(400).send(e);
+    res.status(400).send({ status: 400, message: e });
   }
 });
 
@@ -70,7 +67,7 @@ router.post("/addDataDosen", (req, res) => {
       res?.status(200).send({ status: 200, message: "Sukses nambah data" });
     })
     .catch((e) => {
-      res?.status(400).send(e);
+      res?.status(400)?.send(e);
     });
 });
 
@@ -82,15 +79,15 @@ router.post("/addMultipleDataDosen", (req, res) => {
       res?.status(200).send({ status: 200, message: "Sukses nambah data" });
     })
     ?.catch((e) => {
-      res?.status(400).send(e);
+      res?.status(400).send({ message: e?.message });
     });
 });
 
 // -UPDATE-
 router.post("/updateDataDosen", (req, res) => {
-  const { id_dosen } = req.body;
+  const { nip } = req.body;
 
-  updateFn({ model: dosen, data: req?.body, key: "id_dosen", val: id_dosen })
+  updateFn({ model: dosen, data: req?.body, where: { nip } })
     ?.then(() => {
       res?.status(200).send({ status: 200, message: "Sukses update data" });
     })
@@ -113,9 +110,9 @@ router.post("/updateMultipleDataDosen", (req, res) => {
 
 // -DELETE-
 router.post("/deleteDataDosen", (req, res) => {
-  const { id_dosen } = req.body;
+  const { nip } = req.body;
 
-  deleteFn({ model: dosen, key: "id_dosen", val: id_dosen })
+  deleteFn({ model: dosen, where: { nip } })
     ?.then(() => {
       res?.status(200)?.send({ status: 200, message: "Sukses delete data" });
     })

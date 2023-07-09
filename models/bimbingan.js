@@ -1,24 +1,24 @@
 "use strict";
 const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
-  class usulan extends Model {
+  class bimbingan extends Model {
     /**
      * Helper method for defining associations.
      * This method is not a part of Sequelize lifecycle.
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      usulan.belongsTo(models?.dosen, {
+      bimbingan.belongsTo(models?.dosen, {
         foreignKey: "nip",
       });
-      usulan.belongsTo(models?.mhs, {
+      bimbingan.belongsTo(models?.mhs, {
         foreignKey: "no_bp",
       });
 
       // define association here
     }
   }
-  usulan.init(
+  bimbingan.init(
     {
       id: {
         allowNull: false,
@@ -28,27 +28,14 @@ module.exports = (sequelize, DataTypes) => {
       },
       no_bp: DataTypes.CHAR(36),
       nip: DataTypes.CHAR(36),
-      judul: DataTypes.TEXT,
+      judul: DataTypes.STRING,
       bidang: DataTypes.STRING,
-      jdl_from_dosen: DataTypes.STRING,
-      file_pra_proposal: DataTypes.BLOB,
-      status_usulan: {
-        type: DataTypes.ENUM("confirm", "partially confirm", "no confirm"),
-        defaultValue: "no confirm",
-      },
-      deletedAt: DataTypes.DATE,
-
-      /**
-       * - confirm, kalau smua usulan di konfimrasi dosen terkait
-       * - partially acc, kalau hanya 1 dosen terkait yg konfirmasi
-       * - no acc, belum ada dosen yang konfirmasi
-       * */
+      file_proposal: DataTypes.BLOB,
     },
     {
       sequelize,
-      modelName: "usulan",
-      paranoid: true,
+      modelName: "bimbingan",
     }
   );
-  return usulan;
+  return bimbingan;
 };

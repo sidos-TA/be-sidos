@@ -3,10 +3,10 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface) {
-    await queryInterface.addConstraint("usulans", {
+    await queryInterface.addConstraint("bimbingans", {
       fields: ["no_bp"],
       type: "foreign key",
-      name: "associate_usul_mhs",
+      name: "associate_bimbingan_mhs",
       references: {
         table: "mhs",
         field: "no_bp",
@@ -14,10 +14,10 @@ module.exports = {
       onUpdate: "CASCADE",
       onDelete: "NO ACTION",
     });
-    await queryInterface.addConstraint("usulans", {
+    await queryInterface.addConstraint("bimbingans", {
       fields: ["nip"],
       type: "foreign key",
-      name: "associate_usul_dosen",
+      name: "associate_bimbingan_dosen",
       references: {
         table: "dosens",
         field: "nip",
@@ -25,7 +25,6 @@ module.exports = {
       onUpdate: "CASCADE",
       onDelete: "NO ACTION",
     });
-
     /**
      * Add altering commands here.
      *
@@ -35,8 +34,14 @@ module.exports = {
   },
 
   async down(queryInterface) {
-    await queryInterface.removeConstraint("usulans", "associate_usul_mhs");
-    await queryInterface.removeConstraint("usulans", "associate_usul_dosen");
+    await queryInterface.removeConstraint(
+      "bimbingans",
+      "associate_bimbingan_mhs"
+    );
+    await queryInterface.removeConstraint(
+      "bimbingans",
+      "associate_bimbingan_dosen"
+    );
     /**
      * Add reverting commands here.
      *

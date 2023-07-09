@@ -8,21 +8,37 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      // define association here
+      // // define association here
+      mhs.hasMany(models?.bimbingan, {
+        foreignKey: "no_bp",
+      });
+      mhs.hasMany(models?.usulan, {
+        foreignKey: "no_bp",
+      });
+      // models?.usulan.belongsTo(mhs);
     }
   }
   mhs.init(
     {
-      id_mhs: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
+      no_bp: {
         allowNull: false,
-        autoIncrement: true,
+        primaryKey: true,
+        // autoIncrement: true,
+        // type: Sequelize.INTEGER,
+        type: DataTypes.CHAR(36),
       },
       name: DataTypes.STRING,
-      no_bp: DataTypes.STRING,
-      judul_acc: DataTypes.STRING(2500),
+      judul_acc: DataTypes.TEXT,
       prodi: DataTypes.STRING,
+      tingkatan: DataTypes.STRING,
+      is_usul: { type: DataTypes.BOOLEAN, defaultValue: false },
+      status_judul: {
+        type: DataTypes.ENUM("terima", "tolak", "usulan", "belum mengajukan"),
+        defaultValue: {
+          type: DataTypes.ENUM("terima", "tolak", "usulan", "belum mengajukan"),
+          defaultValue: "belum mengajukan",
+        },
+      },
     },
     {
       sequelize,

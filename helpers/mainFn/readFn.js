@@ -1,17 +1,39 @@
-const readFn = ({ model, key, val, type }) => {
+const readFn = ({
+  model,
+  where,
+  type,
+  page = 1,
+  usePaginate = true,
+  isExcludeId = true,
+  ...props
+}) => {
   if (type === "find") {
     return model.findOne({
-      where: {
-        [key]: val,
-      },
+      ...props,
+      where,
       attributes: {
-        exclude: ["id"],
+        ...props?.attributes,
+        ...(isExcludeId && {
+          exclude: ["id"],
+        }),
       },
     });
   }
+
   return model.findAll({
+    ...props,
+    ...(where && {
+      where,
+    }),
+    ...(usePaginate && {
+      offset: page * 10 - 10,
+      limit: 10,
+    }),
     attributes: {
-      exclude: ["id"],
+      ...props?.attributes,
+      ...(isExcludeId && {
+        exclude: ["id"],
+      }),
     },
   });
 };

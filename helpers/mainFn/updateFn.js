@@ -1,9 +1,11 @@
-const updateFn = ({ model, data, key, val }) => {
-  return model.update(data, {
-    where: {
-      [key]: val,
+const updateFn = async ({ model, data, where, isTransaction, transaction }) => {
+  return await model.update(
+    data,
+    {
+      where,
     },
-  });
+    isTransaction && { transaction }
+  );
 };
 
 module.exports = updateFn;

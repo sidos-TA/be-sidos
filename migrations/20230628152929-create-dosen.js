@@ -3,16 +3,14 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable("dosens", {
-      id_dosen: {
+      nip: {
         allowNull: false,
-        autoIncrement: true,
         primaryKey: true,
-        type: Sequelize.INTEGER,
+        type: Sequelize.CHAR(36),
+        // autoIncrement: true,
+        // type: Sequelize.INTEGER,
       },
       name: {
-        type: Sequelize.STRING,
-      },
-      nip: {
         type: Sequelize.STRING,
       },
 
@@ -21,9 +19,11 @@ module.exports = {
       },
       n_mhs_bimbingan: {
         type: Sequelize.INTEGER,
+        defaultValue: 0,
       },
       n_mhs_usulan: {
         type: Sequelize.INTEGER,
+        defaultValue: 0,
       },
       sks: {
         type: Sequelize.INTEGER,
@@ -271,7 +271,7 @@ module.exports = {
     // ]);
   },
 
-  async down(queryInterface, Sequelize) {
+  async down(queryInterface) {
     await queryInterface.dropTable("dosens");
   },
 };

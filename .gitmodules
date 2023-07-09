@@ -1,0 +1,3 @@
+[submodule "spk_module"]
+	path = spk_module
+	url = https://github.com/Restu-Averian/EDAS_Winnowing.git
