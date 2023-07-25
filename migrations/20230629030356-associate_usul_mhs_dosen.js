@@ -12,7 +12,7 @@ module.exports = {
         field: "no_bp",
       },
       onUpdate: "CASCADE",
-      onDelete: "NO ACTION",
+      onDelete: "CASCADE",
     });
     await queryInterface.addConstraint("usulans", {
       fields: ["nip"],
@@ -23,7 +23,7 @@ module.exports = {
         field: "nip",
       },
       onUpdate: "CASCADE",
-      onDelete: "NO ACTION",
+      onDelete: "CASCADE",
     });
 
     /**

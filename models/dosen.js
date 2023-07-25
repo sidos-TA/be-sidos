@@ -29,19 +29,17 @@ module.exports = (sequelize, DataTypes) => {
         // type: Sequelize.INTEGER,
       },
       name: DataTypes.STRING,
+      username: DataTypes.STRING,
+      password: DataTypes.TEXT,
       bidang: DataTypes.TEXT,
-      n_mhs_bimbingan: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0,
-      },
-      n_mhs_usulan: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0,
-      },
       sks: DataTypes.INTEGER,
       jabatan: DataTypes.STRING,
       pendidikan: DataTypes.STRING,
       penelitian: DataTypes.TEXT,
+      roles: {
+        type: DataTypes.INTEGER,
+        defaultValue: 1,
+      },
     },
     {
       sequelize,

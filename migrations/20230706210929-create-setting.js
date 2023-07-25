@@ -14,6 +14,9 @@ module.exports = {
       kuota_bimbingan: {
         type: Sequelize.INTEGER,
       },
+      kGram: {
+        type: Sequelize.INTEGER,
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE,

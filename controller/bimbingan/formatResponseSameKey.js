@@ -18,4 +18,4 @@ const formatResponseSameKey = ({ arrDatas, propsKey, propsMergeToArray }) => {
   return Object.values(objAcuan);
 };
 
-module.exports = { formatResponseSameKey };
+module.exports = formatResponseSameKey;

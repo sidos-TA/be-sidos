@@ -1,5 +1,6 @@
 "use strict";
 const { Model } = require("sequelize");
+const bcrypt = require("bcrypt");
 module.exports = (sequelize, DataTypes) => {
   class mhs extends Model {
     /**
@@ -28,6 +29,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.CHAR(36),
       },
       name: DataTypes.STRING,
+      username: DataTypes.STRING,
+      password: {
+        type: DataTypes.TEXT,
+        defaultValue: {
+          type: DataTypes.TEXT,
+          defaultValue: "password123",
+        },
+      },
       judul_acc: DataTypes.TEXT,
       prodi: DataTypes.STRING,
       tingkatan: DataTypes.STRING,
@@ -39,11 +48,20 @@ module.exports = (sequelize, DataTypes) => {
           defaultValue: "belum mengajukan",
         },
       },
+      roles: {
+        type: DataTypes.INTEGER,
+        defaultValue: 2,
+      },
     },
     {
       sequelize,
       modelName: "mhs",
     }
   );
+  // mhs.beforeCreate(async (mhs) => {
+  //   const dataMhs = JSON.parse(JSON.stringify(mhs));
+  //   const salt = await bcrypt.genSaltSync(10, "a");
+  //   mhs.password = bcrypt.hashSync(dataMhs.password, salt);
+  // });
   return mhs;
 };

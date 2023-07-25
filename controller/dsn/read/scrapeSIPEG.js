@@ -9,15 +9,21 @@ const scrapeSIPEG = async (nip) => {
 
   const dom = new JSDOM(pages)?.window?.document;
 
-  const name = dom?.querySelector(
-    "#content-shift > div > div > div > table.table-portrait > tbody > tr:nth-child(2) > td"
-  ).textContent;
-  const jabatan = dom?.querySelector(
-    "#content-shift > div > div > div > table.table-portrait > tbody > tr:nth-child(23) > td"
-  )?.textContent;
-  const pendidikan = dom?.querySelector(
-    "#content-shift > div > div > div > table.table-portrait > tbody > tr:nth-child(25) > td"
-  )?.textContent;
+  const name = dom
+    ?.querySelector(
+      "#content-shift > div > div > div > table.table-portrait > tbody > tr:nth-child(2) > td"
+    )
+    .textContent?.trimStart();
+  const jabatan = dom
+    ?.querySelector(
+      "#content-shift > div > div > div > table.table-portrait > tbody > tr:nth-child(23) > td"
+    )
+    ?.textContent?.trimStart();
+  const pendidikan = dom
+    ?.querySelector(
+      "#content-shift > div > div > div > table.table-portrait > tbody > tr:nth-child(25) > td"
+    )
+    ?.textContent?.trimStart();
 
   return { name, jabatan, pendidikan };
 };

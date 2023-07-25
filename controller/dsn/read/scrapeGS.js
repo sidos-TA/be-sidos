@@ -1,4 +1,5 @@
 const { JSDOM } = require("jsdom");
+const sameArrObj = require("../../../helpers/sameArrObj");
 const scrapePages = require("../../scrapePages");
 
 const scrapeGS = async (gs_url) => {
@@ -10,17 +11,23 @@ const scrapeGS = async (gs_url) => {
   const arrBidang = [];
 
   dom.querySelectorAll(".gsc_a_tr").forEach((data) => {
-    const judul = data?.querySelector(".gsc_a_at").textContent;
-    const link = data?.querySelector(".gsc_a_at").getAttribute("href");
+    const title = data?.querySelector(".gsc_a_at").textContent;
+    const baseUrl = gs_url?.split("/c")?.[0];
+    const link_title = `${baseUrl}${data
+      ?.querySelector(".gsc_a_at")
+      .getAttribute("href")}`;
 
-    arrPenelitian.push({ judul, link });
+    arrPenelitian.push({ title, link_title });
   });
 
   dom.querySelectorAll("#gsc_prf_int a").forEach((data) => {
     arrBidang.push(data?.textContent);
   });
 
-  return { dataPenelitian: arrPenelitian, bidang: arrBidang };
+  return {
+    dataPenelitian: sameArrObj({ arr: arrPenelitian, props: "title" }),
+    bidang: arrBidang,
+  };
 };
 
 module.exports = scrapeGS;

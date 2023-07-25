@@ -1,90 +1,165 @@
+const formatResponseSameKey = require("../controller/bimbingan/formatResponseSameKey");
 const scrapeGS = require("../controller/dsn/read/scrapeGS");
 const scrapeSIPEG = require("../controller/dsn/read/scrapeSIPEG");
+const encryptPassword = require("../helpers/encryptPassword");
+const errResponse = require("../helpers/errResponse");
+const filterByKey = require("../helpers/filterByKey");
+const forbiddenResponse = require("../helpers/forbiddenResponse");
 const createFn = require("../helpers/mainFn/createFn");
 const deleteFn = require("../helpers/mainFn/deleteFn");
 const multipleFn = require("../helpers/mainFn/multipleFn");
 const readFn = require("../helpers/mainFn/readFn");
 const updateFn = require("../helpers/mainFn/updateFn");
-const { dosen } = require("../models");
+const verifyJWT = require("../helpers/verifyJWT");
+const { dosen, bimbingan, mhs, usulan } = require("../models");
 const router = require("./router");
 
 // -READ-
-router.post("/getAllDosen", async (req, res) => {
+router.post("/getAllDosen", verifyJWT, forbiddenResponse, async (req, res) => {
   const { page } = req.body;
   try {
-    const arrDatas = await readFn({
+    const objSearch = filterByKey({ req });
+    const getDatas = await readFn({
       model: dosen,
       type: "all",
       page,
+      where: objSearch,
+      ...(Object.keys(objSearch)?.length && {
+        usePaginate: false,
+      }),
+
+      include: [usulan, bimbingan],
     });
-    res.status(200).send({ status: 200, data: arrDatas });
+
+    const arrDatasDosen = JSON.parse(JSON.stringify(getDatas));
+
+    res.status(200).send({ status: 200, data: arrDatasDosen });
   } catch (e) {
-    res.status(400).send({ status: 400, data: [], message: e?.message });
+    errResponse({ res, e });
   }
 });
 
-router.post("/getDosenByNIP", async (req, res) => {
-  const { nip } = req.body;
-  try {
-    // const arrDatas = await getDsnByUID(id_dosen);
-    const arrDatas = await readFn({
-      model: dosen,
-      type: "find",
-      where: {
-        nip,
-      },
-    });
-    res.status(200).send({ status: 200, data: arrDatas });
-  } catch (e) {
-    res.status(400).send({ status: 400, message: e?.message });
-  }
-});
+router.post(
+  "/getDosenByNIP",
+  verifyJWT,
+  forbiddenResponse,
+  async (req, res) => {
+    const { nip } = req.body;
 
-router.post("/scrapeGS", async (req, res) => {
+    try {
+      const getDatasDosen = await readFn({
+        model: dosen,
+        type: "find",
+        where: {
+          nip,
+        },
+      });
+      const getDatasBimbingan = await readFn({
+        model: bimbingan,
+        type: "all",
+        where: {
+          nip,
+        },
+        include: [mhs],
+      });
+      const objDatasDosen = JSON.parse(JSON.stringify(getDatasDosen));
+      const arrDatasBimbingan = JSON.parse(JSON.stringify(getDatasBimbingan));
+
+      const [dataMhsBimbingan] = formatResponseSameKey({
+        arrDatas: arrDatasBimbingan,
+        propsKey: "nip",
+        propsMergeToArray: "mh",
+      });
+
+      const dataDosen = { ...objDatasDosen, ...dataMhsBimbingan };
+
+      res.status(200).send({ status: 200, data: dataDosen });
+    } catch (e) {
+      res.status(400).send({ status: 400, message: e?.message });
+    }
+  }
+);
+
+router.post("/scrapeGS", verifyJWT, forbiddenResponse, async (req, res) => {
   const { gs_url } = req.body;
+
   try {
-    const { dataPenelitian, bidang } = await scrapeGS(gs_url);
-    res.status(200).send({ status: 200, penelitian: dataPenelitian, bidang });
+    if (
+      (gs_url &&
+        gs_url?.includes("https://scholar.google.co.id/citations?user")) ||
+      gs_url?.includes("https://scholar.google.com/citations?user")
+    ) {
+      const { dataPenelitian, bidang } = await scrapeGS(gs_url);
+      const resultData = {
+        penelitian: dataPenelitian,
+        bidang,
+      };
+
+      res.status(200).send({ status: 200, data: resultData });
+    } else {
+      throw new Error("Mohon masukkan link google schoolar");
+    }
   } catch (e) {
-    res.status(400).send({ status: 400, message: e });
+    errResponse({ res, e: "Link google scholar tidak sesuai" });
   }
 });
 
-router.post("/scrapeSIPEG", async (req, res) => {
+router.post("/scrapeSIPEG", verifyJWT, forbiddenResponse, async (req, res) => {
   const { nip } = req.body;
+
   try {
-    const { name, jabatan, pendidikan } = await scrapeSIPEG(nip);
-    res.status(200).send({ status: 200, name, nip, jabatan, pendidikan });
+    if (nip) {
+      const { name, jabatan, pendidikan } = await scrapeSIPEG(nip);
+
+      const resultData = {
+        name,
+        jabatan,
+        pendidikan,
+      };
+
+      res.status(200).send({ status: 200, data: resultData });
+    } else {
+      throw new Error("Mohon Masukkan NIP");
+    }
   } catch (e) {
-    res.send(e);
+    errResponse({ res, e: "NIP tidak ditemukan" });
   }
 });
 
 // -CREATE-
-router.post("/addDataDosen", (req, res) => {
-  createFn({ data: req?.body, model: dosen })
+router.post("/addDataDosen", verifyJWT, forbiddenResponse, async (req, res) => {
+  const hashPassword = await encryptPassword(
+    req?.body?.password || "password123"
+  );
+
+  createFn({ data: { ...req?.body, password: hashPassword }, model: dosen })
     ?.then(() => {
       res?.status(200).send({ status: 200, message: "Sukses nambah data" });
     })
     .catch((e) => {
-      res?.status(400)?.send(e);
+      errResponse({ res, e });
     });
 });
 
-router.post("/addMultipleDataDosen", (req, res) => {
-  const { arrDatas } = req.body;
+router.post(
+  "/addMultipleDataDosen",
+  verifyJWT,
+  forbiddenResponse,
+  (req, res) => {
+    const { arrDatas } = req.body;
 
-  multipleFn({ model: dosen, arrDatas, type: "add" })
-    ?.then(() => {
-      res?.status(200).send({ status: 200, message: "Sukses nambah data" });
-    })
-    ?.catch((e) => {
-      res?.status(400).send({ message: e?.message });
-    });
-});
+    multipleFn({ model: dosen, arrDatas, type: "add" })
+      ?.then(() => {
+        res?.status(200).send({ status: 200, message: "Sukses nambah data" });
+      })
+      ?.catch((e) => {
+        res?.status(400).send({ message: e?.message });
+      });
+  }
+);
 
 // -UPDATE-
-router.post("/updateDataDosen", (req, res) => {
+router.post("/updateDataDosen", verifyJWT, forbiddenResponse, (req, res) => {
   const { nip } = req.body;
 
   updateFn({ model: dosen, data: req?.body, where: { nip } })
@@ -96,20 +171,25 @@ router.post("/updateDataDosen", (req, res) => {
     });
 });
 
-router.post("/updateMultipleDataDosen", (req, res) => {
-  const { arrDatas } = req.body;
+router.post(
+  "/updateMultipleDataDosen",
+  verifyJWT,
+  forbiddenResponse,
+  (req, res) => {
+    const { arrDatas } = req.body;
 
-  multipleFn({ model: dosen, arrDatas, type: "update" })
-    ?.then(() => {
-      res?.status(200).send({ status: 200, message: "Sukses update data" });
-    })
-    ?.catch((e) => {
-      res?.status(400).send(e);
-    });
-});
+    multipleFn({ model: dosen, arrDatas, type: "update" })
+      ?.then(() => {
+        res?.status(200).send({ status: 200, message: "Sukses update data" });
+      })
+      ?.catch((e) => {
+        res?.status(400).send(e);
+      });
+  }
+);
 
 // -DELETE-
-router.post("/deleteDataDosen", (req, res) => {
+router.post("/deleteDataDosen", verifyJWT, forbiddenResponse, (req, res) => {
   const { nip } = req.body;
 
   deleteFn({ model: dosen, where: { nip } })

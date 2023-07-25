@@ -1,0 +1,60 @@
+{
+  "arrDatas": [
+    {
+      "name": "",
+      "benefitCost": "benefit",
+      "code": "K1",
+      "skala": 20,
+      "stringSkala": 20,
+      "bobot": 0.139
+    },
+    {
+      "name": "",
+      "benefitCost": "cost",
+      "code": "K2",
+      "skala": 20,
+      "stringSkala": 20,
+      "bobot": 0.071
+    },
+    {
+      "name": "",
+      "benefitCost": "cost",
+      "code": "K3",
+      "skala": 20,
+      "stringSkala": 20,
+      "bobot": 0.086
+    },
+    {
+      "name": "",
+      "benefitCost": "benefit",
+      "code": "K4",
+      "skala": 20,
+      "stringSkala": 20,
+      "bobot": 0.186
+    },
+    {
+      "name": "",
+      "benefitCost": "benefit",
+      "code": "K5",
+      "skala": 20,
+      "stringSkala": 20,
+      "bobot": 0.059
+    },
+    {
+      "name": "",
+      "benefitCost": "benefit",
+      "code": "K6",
+      "skala": 20,
+      "stringSkala": 20,
+      "bobot": 0.047
+    },
+    {
+      "name": "",
+      "benefitCost": "benefit",
+      "code": "K7",
+      "skala": 20,
+      "stringSkala": 20,
+      "bobot": 0.0415
+    }
+  ]
+}

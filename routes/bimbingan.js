@@ -3,9 +3,7 @@ const { bimbingan, usulan, mhs, dosen, sequelize } = require("../models");
 const {
   addToTabelJudul,
 } = require("../controller/bimbingan/addBimbingan/addToTabelJudul");
-const {
-  inc_nMhsBimbingan,
-} = require("../controller/bimbingan/addBimbingan/inc_nMhsBimbingan");
+
 const {
   updateStatusJudul,
 } = require("../controller/bimbingan/addBimbingan/updateStatusJudul");
@@ -25,21 +23,26 @@ const {
   deleteDataBimbingan,
 } = require("../controller/bimbingan/deleteBimbingan/deleteDataBimbingan");
 const readFn = require("../helpers/mainFn/readFn");
-const {
-  formatResponseSameKey,
-} = require("../controller/bimbingan/getBimbingan");
+const formatResponseSameKey = require("../controller/bimbingan/formatResponseSameKey");
 const updateFn = require("../helpers/mainFn/updateFn");
-const multipleFn = require("../helpers/mainFn/multipleFn");
-const kalkulasiMhsValue = require("../helpers/kalkulasiMhsValue");
 const deleteFn = require("../helpers/mainFn/deleteFn");
+const errResponse = require("../helpers/errResponse");
+const filterByKey = require("../helpers/filterByKey");
+const verifyJWT = require("../helpers/verifyJWT");
+const forbiddenResponse = require("../helpers/forbiddenResponse");
 
 // -READ-
-router.post("/getBimbingan", async (req, res) => {
+router.post("/getBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
   try {
+    const objSearch = filterByKey({ req });
     const getDatasBimbingan = await readFn({
       model: bimbingan,
       type: "all",
-      include: [dosen],
+      include: [dosen, mhs],
+      where: objSearch,
+      ...(Object.keys(objSearch)?.length && {
+        usePaginate: false,
+      }),
     });
 
     const arrDatasBimbingan = JSON.parse(JSON.stringify(getDatasBimbingan));
@@ -48,48 +51,76 @@ router.post("/getBimbingan", async (req, res) => {
       arrDatas: arrDatasBimbingan,
       propsKey: "no_bp",
       propsMergeToArray: "dosen",
+    })?.map((data) => {
+      return { ...data, ...data?.mh };
     });
 
     res.status(200).send({ status: 200, data: arrDatas });
   } catch (e) {
-    res.status(400).send({ status: 400, error: e });
+    errResponse({ res, e });
   }
 });
 
-router.post("/getBimbinganByKey", async (req, res) => {
-  const key = Object?.keys(req?.body)?.[0];
-  try {
-    const getDatasBimbingan = await readFn({
-      model: bimbingan,
-      type: "all",
-      include: [
-        {
-          model: key === "no_bp" ? dosen : mhs,
+router.post(
+  "/getBimbinganByKey",
+  verifyJWT,
+  forbiddenResponse,
+  async (req, res) => {
+    const key = Object?.keys(req?.body)?.[0];
+    try {
+      const getDatasBimbingan = await readFn({
+        model: bimbingan,
+        type: "all",
+        include: [
+          {
+            model: key === "no_bp" ? dosen : mhs,
+          },
+        ],
+        where: {
+          [key]: req?.body?.[key],
         },
-      ],
-      where: {
-        [key]: req?.body?.[key],
-      },
-    });
+      });
+      const getDatasMhs = await readFn({
+        model: mhs,
+        type: "find",
+        where: {
+          no_bp: req?.body?.[key],
+        },
+      });
+      const getDatasDosen = await readFn({
+        model: dosen,
+        type: "find",
+        where: {
+          nip: req?.body?.[key],
+        },
+      });
 
-    const arrDatasBimbingan = JSON.parse(JSON.stringify(getDatasBimbingan));
+      const arrDatasBimbingan = JSON.parse(JSON.stringify(getDatasBimbingan));
+      const datasMhs = JSON.parse(JSON.stringify(getDatasMhs));
+      const datasDosen = JSON.parse(JSON.stringify(getDatasDosen));
 
-    const arrDatas = formatResponseSameKey({
-      arrDatas: arrDatasBimbingan,
-      propsKey: key,
-      propsMergeToArray: `${key === "no_bp" ? "mh" : "dosen"}`,
-    });
+      const [datas] = formatResponseSameKey({
+        arrDatas: arrDatasBimbingan,
+        propsKey: key,
+        propsMergeToArray: `${key === "no_bp" ? "mh" : "dosen"}`,
+      });
 
-    res.status(200).send({ status: 200, data: arrDatas });
-  } catch (e) {
-    res.status(400).send({ status: 400, error: e });
+      if (key === "no_bp") {
+        res.status(200).send({ status: 200, data: { ...datas, ...datasMhs } });
+      } else {
+        res
+          .status(200)
+          .send({ status: 200, data: { ...datas, ...datasDosen } });
+      }
+    } catch (e) {
+      res.status(400).send({ status: 400, error: e });
+    }
   }
-});
+);
 
 // -CREATE-
-router.post("/addBimbingan", async (req, res) => {
-  const { no_bp, nip, judul, bidang, tingkatan, status_judul, status_usulan } =
-    req.body;
+router.post("/addBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
+  const { no_bp, nip, judul, bidang, tingkatan, status_judul } = req.body;
   try {
     const getDataUsulan = await readFn({
       model: usulan,
@@ -116,52 +147,45 @@ router.post("/addBimbingan", async (req, res) => {
           // add data judul (judul)
           addToTabelJudul({ judul, bidang, options, tingkatan })
             ?.then(() => {
-              // add jumlah n_mhs_bimbingan  (dosen)
-              inc_nMhsBimbingan({ nip, options })
+              // hapus dosen usul yg g kpilih
+              deleteFn({
+                model: usulan,
+                where: {
+                  nip: arrUsulanNotChoosed?.map((usul) => usul?.nip),
+                },
+                isTransaction: true,
+                transaction: options?.transaction,
+              })
                 ?.then(() => {
-                  // update status_judul (mhs)
+                  // add jumlah n_mhs_bimbingan  (dosen)
                   updateStatusJudul({ status_judul, no_bp, options })
                     ?.then(() => {
-                      // kurangi jumlah n_mhs_usulan dosen yg tidak terpilih sbg pembimbing
-                      kalkulasiMhsValue({
-                        act: "dec_n_mhs",
-                        propsCalculate: "n_mhs_usulan",
-                        transaction: true,
-                        where: {
-                          nip: arrUsulanNotChoosed?.map((usul) => usul?.nip),
+                      // tambah judul acc ke mhs (mhs)
+                      updateFn({
+                        model: mhs,
+                        data: {
+                          judul_acc: judul,
                         },
-                      })
-                        ?.then(() => {
-                          // tambah judul acc ke mhs (mhs)
+                        isTransaction: true,
+                        transaction: options?.transaction,
+                        where: {
+                          no_bp,
+                        },
+                      })?.then(() => {
+                        // update status_usulan (usulan)
+                        /**Entah knp pakai multipleFn malah auto nambah n_mhs_usulan */
+                        nip?.forEach((dataNip) => {
                           updateFn({
-                            model: mhs,
+                            model: usulan,
                             data: {
-                              judul_acc: judul,
+                              status_usulan: "confirm",
                             },
-                            isTransaction: true,
-                            transaction: options?.transaction,
                             where: {
-                              no_bp,
+                              nip: dataNip,
                             },
-                          })?.then(() => {
-                            // update status_usulan (usulan)
-                            /**Entah knp pakai multipleFn malah auto nambah n_mhs_usulan */
-                            nip?.forEach((dataNip) => {
-                              updateFn({
-                                model: usulan,
-                                data: {
-                                  status_usulan,
-                                },
-                                where: {
-                                  nip: dataNip,
-                                },
-                              });
-                            });
                           });
-                        })
-                        ?.catch((e) => {
-                          throw new Error(e);
                         });
+                      });
                     })
                     ?.catch((e) => {
                       throw new Error(e);
@@ -178,7 +202,13 @@ router.post("/addBimbingan", async (req, res) => {
 
         await sequelize?.transaction(async (transaction) => {
           // add ke tabel bimbingan
-          addToTabelBimbingan({ arrDatas: arrUsulanChoosed, transaction });
+          addToTabelBimbingan({
+            arrDatas: arrUsulanChoosed?.map((usul) => ({
+              ...usul,
+              status_judul,
+            })),
+            transaction,
+          });
         });
 
         res
@@ -186,48 +216,72 @@ router.post("/addBimbingan", async (req, res) => {
           .send({ status: 200, message: "Sukses nambah bimbingan" });
       } else if (nip?.length === 1) {
         // update status_usulan
-        await updateStatusUsulan({ no_bp, status_usulan: "partially confirm" });
-        throw new Error("Butuh 1 dosen lagi untuk jadi pembimbing");
+        updateStatusUsulan({ no_bp, status_usulan: "partially confirm" })
+          ?.then(() => {
+            res?.status(200)?.send({
+              status: 200,
+              message: "Sukses update status usulan mahasiswa",
+            });
+          })
+          ?.catch(() => {
+            errResponse({ res, e: "Butuh 1 dosen lagi untuk jadi pembimbing" });
+          });
       } else {
-        await updateStatusUsulan({ no_bp, status_usulan: "no confirm" });
-
-        throw new Error("Setidaknya 2 dosen untuk jadi pembimbing");
+        updateStatusUsulan({ no_bp, status_usulan: "no confirm" })
+          ?.then(() => {
+            res?.status(200)?.send({
+              status: 200,
+              message:
+                "Sukses update status usulan mahasiswa menjadi no confirm",
+            });
+          })
+          ?.catch(() => {
+            errResponse({
+              res,
+              e: "Setidaknya 2 dosen untuk jadi dosen pembimbing",
+            });
+          });
       }
     }
   } catch (e) {
-    res?.status(400)?.send({ error: e?.message, status: 400 });
+    errResponse({ res, e });
   }
 });
 
 // -DELETE-
-router.post("/deleteBimbingan", async (req, res) => {
-  const { nip, no_bp } = req.body;
-  try {
-    bimbingan.addHook("afterBulkDestroy", async (bimbingan, options) => {
-      // kurang 1 n_mhs_bimbingan
-      await dec_nMhsBimbingan({ nip, options });
+router.post(
+  "/deleteBimbingan",
+  verifyJWT,
+  forbiddenResponse,
+  async (req, res) => {
+    const { nip, no_bp } = req.body;
+    try {
+      bimbingan.addHook("afterBulkDestroy", async (bimbingan, options) => {
+        // kurang 1 n_mhs_bimbingan
+        await dec_nMhsBimbingan({ nip, options });
 
-      // kurang 1 n_mhs_usulan
-      await dec_nMhsUsulan({ nip, options });
-    });
+        // kurang 1 n_mhs_usulan
+        await dec_nMhsUsulan({ nip, options });
+      });
 
-    // hapus data bimbingan dosen terkait
-    await deleteDataBimbingan({ nip, no_bp });
+      // hapus data bimbingan dosen terkait
+      await deleteDataBimbingan({ nip, no_bp });
 
-    // hapus data usulan dsn terkait
-    await deleteFn({
-      model: usulan,
-      where: {
-        nip,
-        no_bp,
-      },
-    });
+      // hapus data usulan dsn terkait
+      await deleteFn({
+        model: usulan,
+        where: {
+          nip,
+          no_bp,
+        },
+      });
 
-    res
-      ?.status(200)
-      ?.send({ status: 200, message: "Sukses hapus data bimbingan" });
-  } catch (e) {
-    res?.status(400)?.send({ error: e?.message, status: 400 });
+      res
+        ?.status(200)
+        ?.send({ status: 200, message: "Sukses hapus data bimbingan" });
+    } catch (e) {
+      res?.status(400)?.send({ error: e?.message, status: 400 });
+    }
   }
-});
+);
 module.exports = { bimbinganRoute: router };

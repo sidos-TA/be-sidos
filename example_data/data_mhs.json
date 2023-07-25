@@ -1,0 +1,31 @@
+{
+  "arrDatas": [
+    {
+      "no_bp": "1911082004",
+      "name": "Mhs 1",
+      "judul_acc": "",
+      "prodi": "DIV Teknologi Rekayasa Perangkat Lunak",
+      "tingkatan": "DIV",
+      "is_usul": false,
+      "status_judul": "belum mengajukan"
+    },
+    {
+      "no_bp": "1911082005",
+      "name": "Mhs 2",
+      "judul_acc": "",
+      "prodi": "DIII Manajemen Informatika",
+      "tingkatan": "DIII",
+      "is_usul": false,
+      "status_judul": "belum mengajukan"
+    },
+    {
+      "no_bp": "1911082006",
+      "name": "Mhs 3",
+      "judul_acc": "",
+      "prodi": "DIII Teknologi Informatika",
+      "tingkatan": "DIII",
+      "is_usul": false,
+      "status_judul": "belum mengajukan"
+    }
+  ]
+}

@@ -14,6 +14,9 @@ module.exports = {
       methodName: {
         type: Sequelize.STRING,
       },
+      tingkatan: {
+        type: Sequelize.STRING,
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE,

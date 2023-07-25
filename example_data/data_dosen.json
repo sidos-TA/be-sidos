@@ -1,0 +1,142 @@
+{
+  "arrDatas": [
+    {
+      "nip": "198808252015041002",
+      "name": "Alde Alanda",
+      "penelitian": [
+        {
+          "title": "Sistem Informasi Harga Komoditas Pangan untuk Pasar-Pasar di Kota Padang",
+          "link": ""
+        },
+        {
+          "title": "The Implementation of IoT (Internet of Things) for Controlling Cow Health",
+          "link": ""
+        },
+        {
+          "title": "Web Application Penetration Testing Using SQL Injection Attack",
+          "link": ""
+        }
+      ],
+      "sks": 24,
+      "n_mhs_usulan": 3,
+      "bidang": ["SPK", "ML", "Cloud Computing", "Jaringan", "Cyber Security"],
+      "pendidikan": "S-2",
+      "jabatan": "Lektor"
+    },
+    {
+      "nip": "197406012006042001",
+      "name": "Rasyidah",
+      "penelitian": [
+        {
+          "title": "Implementing Machine Learning in Students Qur'an Memorization Prediction",
+          "link": ""
+        },
+        {
+          "title": "Most Profitable Currency Exchange for ASEAN Countries Using Dijkstra’s Algorithm",
+          "link": ""
+        },
+        {
+          "title": "Customer’s Behavior in Purchase Decision of Textile Materials: RoughRegression Model",
+          "link": ""
+        }
+      ],
+      "sks": 18,
+      "n_mhs_usulan": 5,
+      "bidang": ["SPK", "ML", "Kecerdasan Buatan"],
+      "pendidikan": "S-2",
+      "jabatan": "Lektor Kepala"
+    },
+    {
+      "nip": "198112072008122001",
+      "name": "Defni",
+      "penelitian": [
+        {
+          "title": "Enkripsi SMS (Short Message Service) pada telepon selular berbasis Android dengan metode RC6",
+          "link": ""
+        },
+        {
+          "title": "Pemanfaatan Metode Kano Untuk Menilai Tingkat Kepuasan Pengguna Terhadap Fungsionalitas Sistem Informasi Kepegawaian (Studi Kasus: AKNP Pelalawan)",
+          "link": ""
+        },
+        {
+          "title": "Analisis Sistim Informasi Akademik Berbasis Web Menggunakan Model Kano",
+          "link": ""
+        }
+      ],
+      "sks": 22,
+      "n_mhs_usulan": 4,
+      "bidang": ["ML", "Jaringan", "IoT", "Cloud Computing"],
+      "pendidikan": "S-2",
+      "jabatan": "Lektor"
+    },
+    {
+      "nip": "198605092014042001",
+      "name": "Dwiny Meidelfi",
+      "penelitian": [
+        {
+          "title": "Hybrid of AHP and TOPSIS for loan approval decision",
+          "link": ""
+        },
+        {
+          "title": "Sistem Pendukung Keputusan Memilih Tiket Pesawat Dengan Menggunakan Metode AHP",
+          "link": ""
+        },
+        {
+          "title": "Perancangan Website untuk Menentukan Produk Paling Banyak Terjual di Bengkel Man Motor Metode TOPSIS",
+          "link": ""
+        }
+      ],
+      "sks": 12,
+      "n_mhs_usulan": 5,
+      "bidang": ["SPK", "ML", "Cloud Computing", "Jaringan", "IoT"],
+      "pendidikan": "S-2",
+      "jabatan": "Lektor"
+    },
+    {
+      "nip": "198607222009121004",
+      "name": "Roni Putra",
+      "penelitian": [
+        {
+          "title": "E-Logbook Laporkan Kondisi Kesehatan, Absen & Kinerja Dosen, Kependidikan dan Kontrak selama WFH",
+          "link": ""
+        },
+        {
+          "title": "Financial Statements Analysis of Tanah Datar District Government",
+          "link": ""
+        },
+        {
+          "title": "Perancangan Sistim Monitoring Parkir Mobil Berbasis Web",
+          "link": ""
+        }
+      ],
+      "sks": 11,
+      "n_mhs_usulan": 3,
+      "bidang": ["Sistem Informasi", "Jaringan", "IoT"],
+      "pendidikan": "S-2",
+      "jabatan": "Asisten Ahli"
+    },
+    {
+      "nip": "198103192006042002",
+      "name": "Humaira",
+      "penelitian": [
+        {
+          "title": "Implementing Machine Learning in Students Qur'an Memorization Prediction",
+          "link": ""
+        },
+        {
+          "title": "Multiple Climacteric Fruits Classification by Using Machine Learning Approach",
+          "link": ""
+        },
+        {
+          "title": "Designing Mamdani Fuzzy Inference Systems for Decision Support Systems",
+          "link": ""
+        }
+      ],
+      "sks": 11,
+      "n_mhs_usulan": 5,
+      "bidang": ["Data Science", "Artificial Intelligence"],
+      "pendidikan": "S-2",
+      "jabatan": "Lektor Kepala"
+    }
+  ]
+}

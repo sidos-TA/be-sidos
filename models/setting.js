@@ -20,6 +20,7 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: DataTypes.UUIDV4,
       },
       kuota_bimbingan: DataTypes.INTEGER,
+      kGram: DataTypes.INTEGER,
     },
     {
       sequelize,

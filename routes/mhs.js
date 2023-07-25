@@ -1,29 +1,43 @@
+const decodeJWT = require("../helpers/decodeJWT");
+const encryptPassword = require("../helpers/encryptPassword");
+const errResponse = require("../helpers/errResponse");
+const filterByKey = require("../helpers/filterByKey");
+const forbiddenResponse = require("../helpers/forbiddenResponse");
 const createFn = require("../helpers/mainFn/createFn");
 const deleteFn = require("../helpers/mainFn/deleteFn");
 const multipleFn = require("../helpers/mainFn/multipleFn");
 const readFn = require("../helpers/mainFn/readFn");
 const updateFn = require("../helpers/mainFn/updateFn");
-const { mhs } = require("../models");
+const verifyJWT = require("../helpers/verifyJWT");
+const { mhs, bimbingan, dosen } = require("../models");
 const router = require("./router");
 
 // -GET-
-router.post("/getAllMhs", async (req, res) => {
+router.post("/getAllMhs", verifyJWT, forbiddenResponse, async (req, res) => {
   const { page } = req.body;
+
   try {
+    const objSearch = filterByKey({ req });
     const arrDatas = await readFn({
       model: mhs,
       type: "all",
       page,
+      where: objSearch,
+      ...(Object.keys(objSearch)?.length && {
+        usePaginate: false,
+      }),
     });
-    res.send({ status: 200, data: arrDatas });
+    const arrColumns = Object.keys(mhs?.rawAttributes);
+
+    res.status(200).send({ status: 200, data: arrDatas, columns: arrColumns });
   } catch (e) {
-    res.send(e);
+    res.status(400).send(e);
   }
 });
-router.post("/getMhsById", async (req, res) => {
+router.post("/getMhsByNoBp", verifyJWT, async (req, res) => {
   const { no_bp } = req.body;
   try {
-    const arrDatas = await readFn({
+    const getDatasMhs = await readFn({
       model: mhs,
       type: "find",
       where: {
@@ -31,40 +45,71 @@ router.post("/getMhsById", async (req, res) => {
       },
       usePaginate: false,
     });
-    res.send({ status: 200, data: arrDatas });
+    const getDataBimbinganByKey = await readFn({
+      model: bimbingan,
+      type: "all",
+      where: {
+        no_bp,
+      },
+      include: [dosen],
+    });
+
+    const arrDatasDospem = JSON.parse(
+      JSON.stringify(getDataBimbinganByKey)
+    )?.map((data) => data?.dosen);
+    const datasMhs = JSON.parse(JSON.stringify(getDatasMhs));
+
+    res.send({
+      status: 200,
+      data: { ...datasMhs, dosPem: arrDatasDospem },
+    });
   } catch (e) {
     res.send(e);
   }
 });
 
 // -CREATE-
-router.post("/addMhs", (req, res) => {
+router.post("/addMhs", verifyJWT, forbiddenResponse, async (req, res) => {
+  const dataJWT = decodeJWT({ req });
+  const hashPassword = await encryptPassword(
+    req?.body?.password || "password123"
+  );
+
   createFn({
     model: mhs,
-    data: req?.body,
+    data: { ...req?.body, password: hashPassword },
   })
     ?.then(() => {
-      res?.status(200).send({ status: 200, message: "Sukses nambah data" });
+      if (dataJWT?.roles === 1) {
+        res?.status(200).send({ status: 200, message: "Sukses nambah data" });
+      } else {
+        forbiddenResponse({ res });
+      }
     })
     .catch((e) => {
-      res?.status(400).send(e);
+      errResponse({ res, e });
     });
 });
 
-router.post("/addMultipleDataMhs", (req, res) => {
+router.post("/addMultipleDataMhs", verifyJWT, (req, res) => {
   const { arrDatas } = req.body;
+  const dataJWT = decodeJWT({ req });
 
   multipleFn({ model: mhs, arrDatas, type: "add" })
     ?.then(() => {
-      res?.status(200).send({ status: 200, message: "Sukses nambah data" });
+      if (dataJWT?.roles === 1) {
+        res?.status(200).send({ status: 200, message: "Sukses nambah data" });
+      } else {
+        forbiddenResponse({ res });
+      }
     })
     ?.catch((e) => {
-      res?.status(400).send(e);
+      errResponse({ res, e });
     });
 });
 
 // -UPDATE-
-router.post("/updateDataMhs", (req, res) => {
+router.post("/updateDataMhs", verifyJWT, (req, res) => {
   const { no_bp } = req.body;
 
   updateFn({ model: mhs, data: req?.body, where: { no_bp } })
@@ -76,20 +121,25 @@ router.post("/updateDataMhs", (req, res) => {
     });
 });
 
-router.post("/updateMultipleDataMhs", (req, res) => {
-  const { arrDatas } = req.body;
+router.post(
+  "/updateMultipleDataMhs",
+  verifyJWT,
+  forbiddenResponse,
+  (req, res) => {
+    const { arrDatas } = req.body;
 
-  multipleFn({ model: mhs, arrDatas, type: "update" })
-    ?.then(() => {
-      res?.status(200).send({ status: 200, message: "Sukses update data" });
-    })
-    ?.catch((e) => {
-      res?.status(400).send(e);
-    });
-});
+    multipleFn({ model: mhs, arrDatas, type: "update" })
+      ?.then(() => {
+        res?.status(200).send({ status: 200, message: "Sukses update data" });
+      })
+      ?.catch((e) => {
+        res?.status(400).send(e);
+      });
+  }
+);
 
 // -DELETE-
-router.post("/deleteDataMhs", (req, res) => {
+router.post("/deleteDataMhs", verifyJWT, (req, res) => {
   const { no_bp } = req.body;
 
   deleteFn({ model: mhs, where: { no_bp } })

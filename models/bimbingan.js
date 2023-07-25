@@ -30,6 +30,9 @@ module.exports = (sequelize, DataTypes) => {
       nip: DataTypes.CHAR(36),
       judul: DataTypes.STRING,
       bidang: DataTypes.STRING,
+      status_judul: {
+        type: DataTypes.ENUM("terima", "tolak"),
+      },
       file_proposal: DataTypes.BLOB,
     },
     {

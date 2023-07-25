@@ -4,9 +4,27 @@ const { prodi } = require("../models");
 const multipleFn = require("../helpers/mainFn/multipleFn");
 const updateFn = require("../helpers/mainFn/updateFn");
 const deleteFn = require("../helpers/mainFn/deleteFn");
+const errResponse = require("../helpers/errResponse");
+const readFn = require("../helpers/mainFn/readFn");
+const { uuid } = require("uuidv4");
+const verifyJWT = require("../helpers/verifyJWT");
+const forbiddenResponse = require("../helpers/forbiddenResponse");
+
+// -READ-
+router.post("/getAllProdi", verifyJWT, forbiddenResponse, async (req, res) => {
+  try {
+    const arrDatasProdi = await readFn({
+      model: prodi,
+      type: "all",
+    });
+    res?.status(200)?.send({ status: 200, data: arrDatasProdi });
+  } catch (e) {
+    errResponse({ res, e });
+  }
+});
 
 // -CREATE-
-router.post("/addProdi", async (req, res) => {
+router.post("/addProdi", verifyJWT, forbiddenResponse, async (req, res) => {
   try {
     await createFn({
       model: prodi,
@@ -18,55 +36,70 @@ router.post("/addProdi", async (req, res) => {
   }
 });
 
-router.post("/addMultipleDataProdi", async (req, res) => {
-  const { arrDatas } = req.body;
-  try {
-    await multipleFn({
-      model: prodi,
-      arrDatas: arrDatas,
-      type: "add",
-    });
-    res.status(200).send({ status: 200, data: "Sukses nambah prodi" });
-  } catch (e) {
-    res.status(400).send({ status: 400, message: e });
+router.post(
+  "/addMultipleDataProdi",
+  verifyJWT,
+  forbiddenResponse,
+  async (req, res) => {
+    const { arrDatas } = req.body;
+    try {
+      await multipleFn({
+        model: prodi,
+        arrDatas: arrDatas?.map((data) => ({ ...data, id: uuid() })),
+        type: "add",
+      });
+      res.status(200).send({ status: 200, data: "Sukses nambah prodi" });
+    } catch (e) {
+      res.status(400).send({ status: 400, message: e });
+    }
   }
-});
+);
 
 // -UPDATE-
-router.post("/updateDataProdi", async (req, res) => {
-  const { id } = req.body;
-  try {
-    await updateFn({
-      model: prodi,
-      data: req.body,
-      where: {
-        id,
-      },
-    });
+router.post(
+  "/updateDataProdi",
+  verifyJWT,
+  forbiddenResponse,
+  async (req, res) => {
+    const { id } = req.body;
+    try {
+      await updateFn({
+        model: prodi,
+        data: req.body,
+        where: {
+          id,
+        },
+      });
 
-    res.status(200).send({ status: 200, message: "Sukses update prodi" });
-  } catch (e) {
-    res.status(400).send({ status: 400, message: e });
+      res.status(200).send({ status: 200, message: "Sukses update prodi" });
+    } catch (e) {
+      res.status(400).send({ status: 400, message: e });
+    }
   }
-});
+);
 
-router.post("/updateMultipleDataProdi", async (req, res) => {
-  const { arrDatas } = req.body;
-  try {
-    await multipleFn({
-      model: prodi,
-      arrDatas,
-      type: "update",
-    });
+router.post(
+  "/updateMultipleDataProdi",
+  verifyJWT,
+  forbiddenResponse,
+  async (req, res) => {
+    const { arrDatas } = req.body;
+    try {
+      await multipleFn({
+        model: prodi,
+        arrDatas,
+        type: "update",
+      });
 
-    res.status(200).send({ status: 200, message: "Sukses update prodi" });
-  } catch (e) {
-    res.status(400).send({ status: 400, message: e });
+      res.status(200).send({ status: 200, message: "Sukses update prodi" });
+    } catch (e) {
+      res.status(400).send({ status: 400, message: e });
+    }
   }
-});
+);
 
 // -DELETE-
-router.post("/deleteDataProdi", (req, res) => {
+router.post("/deleteDataProdi", verifyJWT, forbiddenResponse, (req, res) => {
   const { id } = req.body;
 
   deleteFn({ model: prodi, where: { id } })
@@ -77,3 +110,5 @@ router.post("/deleteDataProdi", (req, res) => {
       res?.status(400).send(e);
     });
 });
+
+module.exports = { prodiRoute: router };

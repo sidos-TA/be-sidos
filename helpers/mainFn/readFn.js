@@ -35,6 +35,12 @@ const readFn = ({
         exclude: ["id"],
       }),
     },
+    // attributes: {
+    //   ...props?.attributes,
+    //   ...(isExcludeId && {
+    //     exclude: ["id"],
+    //   }),
+    // },
   });
 };
 

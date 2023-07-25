@@ -23,6 +23,9 @@ module.exports = {
       bidang: {
         type: Sequelize.STRING,
       },
+      status_judul: {
+        type: Sequelize.ENUM("terima", "tolak"),
+      },
       file_proposal: {
         type: Sequelize.BLOB,
       },
