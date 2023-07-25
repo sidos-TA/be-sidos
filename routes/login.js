@@ -48,7 +48,7 @@ router.post("/login", async (req, res) => {
 
         res.send({ status: 200, message: "sukses login", token });
       } else {
-        res.status(401)?.send({ status: 400, error: "Salah password" });
+        res.status(401)?.send({ status: 401, error: "Salah password" });
       }
     };
 
