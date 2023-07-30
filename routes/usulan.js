@@ -14,6 +14,8 @@ const errResponse = require("../helpers/errResponse");
 const filterByKey = require("../helpers/filterByKey");
 const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
+const forbiddenResponseDosen = require("../helpers/forbiddenResponseDosen");
+const createFn = require("../helpers/mainFn/createFn");
 
 // -READ-
 router?.post("/getSPK", async (req, res) => {
@@ -114,8 +116,21 @@ router.post("/getUsulan", verifyJWT, async (req, res) => {
           no_bp,
         }),
       },
+      order: [["createdAt", "ASC"]],
     });
+    const getDatasMhsByNoBp = await readFn({
+      model: mhs,
+      type: "find",
+      where: {
+        ...(no_bp && {
+          no_bp,
+        }),
+      },
+      usePaginate: false,
+    });
+
     const arrDatasUsulan = JSON.parse(JSON.stringify(getDatasUsulan));
+    const objDatasMhs = JSON.parse(JSON.stringify(getDatasMhsByNoBp));
 
     const arrDatas = formatResponseSameKey({
       arrDatas: arrDatasUsulan,
@@ -123,35 +138,93 @@ router.post("/getUsulan", verifyJWT, async (req, res) => {
       propsMergeToArray: "dosen",
     });
 
-    res.status(200).send({ status: 200, data: arrDatas });
+    res
+      .status(200)
+      .send({ status: 200, data: { arrDatas, is_usul: objDatasMhs?.is_usul } });
   } catch (e) {
-    // console.log("e : ", e);
-    res.status(400).send({ status: 400, message: e });
+    errResponse({ res, e });
   }
 });
 
-router.post("/getUsulanById", verifyJWT, async (req, res) => {
+router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
   const { no_bp } = req.body;
   try {
-    const getDatasUsulan = await readFn({
+    const getDataUsulan = await readFn({
       model: usulan,
       type: "all",
+
+      usePaginate: false,
+      isExcludeId: false,
       where: {
         no_bp,
       },
-      include: [dosen, mhs],
+      include: [dosen],
+    });
+
+    const getDataMhs = await readFn({
+      model: mhs,
+      type: "find",
       usePaginate: false,
-      isExcludeId: false,
-    });
-    const arrDatasUsulan = JSON.parse(JSON.stringify(getDatasUsulan));
-
-    const arrDatas = formatResponseSameKey({
-      arrDatas: arrDatasUsulan,
-      propsKey: "no_bp",
-      propsMergeToArray: "dosen",
+      where: {
+        no_bp,
+      },
     });
 
-    res?.status(200)?.send({ status: 200, data: arrDatas });
+    const objDatasMhs = JSON.parse(JSON.stringify(getDataMhs));
+
+    if (Object.keys(objDatasMhs)) {
+      const getDatasDosen = await readFn({
+        model: dosen,
+        type: "all",
+        usePaginate: false,
+        attributes: {
+          include: [
+            [
+              sequelize.fn("COUNT", sequelize.col("usulans.nip")),
+              "n_mhs_usulan",
+            ],
+          ],
+        },
+        include: [
+          {
+            model: usulan,
+            include: [mhs],
+          },
+        ],
+        group: ["nip"],
+      });
+      const arrDatasUsulan = JSON.parse(JSON.stringify(getDataUsulan));
+      const arrDatasDosen = JSON.parse(JSON.stringify(getDatasDosen));
+
+      const arrDatas = [];
+
+      arrDatasUsulan?.forEach((usul) => {
+        arrDatasDosen?.forEach((dosen) => {
+          if (usul?.nip === dosen?.nip) {
+            arrDatas?.push(dosen);
+          }
+        });
+      });
+
+      res?.status(200)?.send({
+        status: 200,
+        data: {
+          arrDatas,
+          statusUsulan: arrDatasUsulan?.[0]?.status_usulan,
+          mhs_name: objDatasMhs?.name,
+          bidang: arrDatasUsulan?.[0]?.bidang,
+          jdl_from_dosen: arrDatasUsulan?.[0]?.jdl_from_dosen,
+          judul: arrDatasUsulan?.[0]?.judul,
+          is_usul: objDatasMhs?.is_usul,
+          tingkatan: objDatasMhs?.tingkatan,
+        },
+      });
+    } else {
+      res?.status(404)?.send({
+        status: 404,
+        error: `No. Bp ${no_bp} tidak ditemukan`,
+      });
+    }
   } catch (e) {
     errResponse({ res, e });
   }
@@ -179,67 +252,85 @@ router.post("/getDataBidang", async (req, res) => {
   }
 });
 // -CREATE-
-router.post("/addUsulan", verifyJWT, async (req, res) => {
-  const { no_bp, nip } = req.body;
-  try {
-    const arrDatas = nip?.map((dataNip) => {
-      return {
-        ...req?.body,
-        nip: dataNip,
-        id: uuid(),
-      };
-    });
-
-    const getDataMhs = await readFn({
-      model: mhs,
-      where: {
-        no_bp,
-        is_usul: true,
-      },
-      type: "find",
-      usePaginate: false,
-      include: [usulan],
-    });
-
-    const dataMhs = JSON.parse(JSON.stringify(getDataMhs));
-
-    // cek dulu apakah udh mengusulkan atau blm
-    if (!dataMhs?.usulans?.length) {
-      usulan.addHook("afterBulkCreate", async (usulan, options) => {
-        // update status is_usul dan status judul mhs
-        await updateFn({
-          model: mhs,
-          data: {
-            is_usul: true,
-            status_judul: "usulan",
-          },
-          where: {
-            no_bp,
-          },
-          isTransaction: true,
-          transaction: options.transaction,
-        });
+router.post(
+  "/addUsulan",
+  verifyJWT,
+  forbiddenResponseDosen,
+  async (req, res) => {
+    const { no_bp, nip } = req.body;
+    try {
+      const arrDatas = nip?.map((dataNip) => {
+        return {
+          ...req?.body,
+          nip: dataNip,
+          id: uuid(),
+        };
       });
 
-      await sequelize.transaction(async (transaction) => {
-        await multipleFn({
-          model: usulan,
-          arrDatas,
-          type: "add",
-          isTransaction: true,
-          transaction,
-        });
+      const getDataMhs = await readFn({
+        model: mhs,
+        where: {
+          no_bp,
+        },
+        type: "find",
+        usePaginate: false,
+        include: [usulan],
       });
-      res?.status(200)?.send({ status: 200, message: "Sukses nambah usulan" });
-    } else {
-      throw new Error(`Mahasiswa ${dataMhs?.name} sudah mengusulkan`);
+
+      const dataMhs = JSON.parse(JSON.stringify(getDataMhs));
+
+      // cek dulu apakah udh mengusulkan atau blm
+      if (!dataMhs?.is_usul) {
+        usulan.addHook("afterBulkCreate", async (usulan, options) => {
+          // update status is_usul dan status judul mhs
+          updateFn({
+            model: mhs,
+            data: {
+              is_usul: true,
+              status_judul: "usulan",
+            },
+            where: {
+              no_bp,
+            },
+            isTransaction: true,
+            transaction: options.transaction,
+          });
+        });
+
+        await sequelize.transaction(async (transaction) => {
+          // nip?.forEach((dataNip) => {
+          //   createFn({
+          //     model: usulan,
+          //     data: {
+          //       ...req?.body,
+          //       nip: dataNip,
+          //       id: uuid(),
+          //     },
+          //     isTransaction: true,
+          //     transaction,
+          //   });
+          // });
+          await multipleFn({
+            model: usulan,
+            arrDatas,
+            type: "add",
+            isTransaction: true,
+            transaction,
+          });
+        });
+        res
+          ?.status(200)
+          ?.send({ status: 200, message: "Sukses nambah usulan" });
+      } else {
+        throw new Error(`Mahasiswa ${dataMhs?.name} sudah mengusulkan`);
+      }
+    } catch (e) {
+      errResponse({ res, e });
+
+      // res?.status(400).send({ status: 400, error: e?.message });
     }
-  } catch (e) {
-    errResponse({ res, e });
-
-    // res?.status(400).send({ status: 400, error: e?.message });
   }
-});
+);
 
 // -UPDATE-
 router.post(
@@ -249,17 +340,6 @@ router.post(
   async (req, res) => {
     const { nip, no_bp } = req.body;
     try {
-      usulan.addHook("beforeBulkDestroy", async (usulan, options) => {
-        await kalkulasiMhsValue({
-          act: "dec_n_mhs",
-          where: {
-            nip,
-          },
-          propsCalculate: "n_mhs_usulan",
-          transaction: options?.transaction,
-        });
-      });
-
       await sequelize.transaction(async (transaction) => {
         // ini sewaktu kaprodi ngapus usulan, dan melakukan update bimbingan
 
@@ -278,7 +358,7 @@ router.post(
         .status(200)
         .send({ status: 200, message: "Update bimbingan berhasil" });
     } catch (e) {
-      res.status(400).send({ status: 400, message: e });
+      errResponse({ res, e });
     }
   }
 );
@@ -302,7 +382,7 @@ router.post("/deleteUsulan", verifyJWT, forbiddenResponse, async (req, res) => {
 
     res.status(200).send({ status: 200, message: "Sukses hapus usulan" });
   } catch (e) {
-    res.status(400).send({ status: 400, message: e });
+    errResponse({ res, e });
   }
 });
 
@@ -319,7 +399,7 @@ router.post(
         throw new Error("Tidak ada data yg direstore");
       }
     } catch (e) {
-      res.status(400).send({ status: 400, message: e?.message });
+      errResponse({ res, e });
     }
   }
 );

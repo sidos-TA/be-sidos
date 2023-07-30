@@ -51,7 +51,7 @@ router.post(
         res?.status(200).send({ status: 200, message: "Sukses update data" });
       })
       ?.catch((e) => {
-        res?.status(400).send(e);
+        errResponse({ res, e });
       });
   }
 );
@@ -68,7 +68,7 @@ router.post(
         res?.status(200)?.send({ status: 200, message: "Sukses delete prodi" });
       })
       ?.catch((e) => {
-        res?.status(400).send(e);
+        errResponse({ res, e });
       });
   }
 );

@@ -30,8 +30,13 @@ module.exports = {
         type: Sequelize.BLOB,
       },
       status_usulan: {
-        type: Sequelize.ENUM("confirm", "partially confirm", "no confirm"),
-        defaultValue: "no confirm",
+        type: Sequelize.ENUM(
+          "confirmed",
+          "partially confirmed",
+          "no confirmed",
+          "unavailable"
+        ),
+        defaultValue: "no confirmed",
       },
       createdAt: {
         allowNull: false,
@@ -41,9 +46,9 @@ module.exports = {
         allowNull: false,
         type: Sequelize.DATE,
       },
-      deletedAt: {
-        type: Sequelize.DATE,
-      },
+      // deletedAt: {
+      //   type: Sequelize.DATE,
+      // },
     });
   },
   async down(queryInterface) {

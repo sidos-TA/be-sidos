@@ -9,7 +9,7 @@ const multipleFn = require("../helpers/mainFn/multipleFn");
 const readFn = require("../helpers/mainFn/readFn");
 const updateFn = require("../helpers/mainFn/updateFn");
 const verifyJWT = require("../helpers/verifyJWT");
-const { mhs, bimbingan, dosen } = require("../models");
+const { mhs, bimbingan, dosen, usulan } = require("../models");
 const router = require("./router");
 
 // -GET-
@@ -26,6 +26,7 @@ router.post("/getAllMhs", verifyJWT, forbiddenResponse, async (req, res) => {
       ...(Object.keys(objSearch)?.length && {
         usePaginate: false,
       }),
+      include: [usulan],
     });
     const arrColumns = Object.keys(mhs?.rawAttributes);
 
@@ -44,6 +45,7 @@ router.post("/getMhsByNoBp", verifyJWT, async (req, res) => {
         no_bp,
       },
       usePaginate: false,
+      include: [usulan],
     });
     const getDataBimbinganByKey = await readFn({
       model: bimbingan,
@@ -70,7 +72,6 @@ router.post("/getMhsByNoBp", verifyJWT, async (req, res) => {
 
 // -CREATE-
 router.post("/addMhs", verifyJWT, forbiddenResponse, async (req, res) => {
-  const dataJWT = decodeJWT({ req });
   const hashPassword = await encryptPassword(
     req?.body?.password || "password123"
   );
@@ -80,28 +81,31 @@ router.post("/addMhs", verifyJWT, forbiddenResponse, async (req, res) => {
     data: { ...req?.body, password: hashPassword },
   })
     ?.then(() => {
-      if (dataJWT?.roles === 1) {
-        res?.status(200).send({ status: 200, message: "Sukses nambah data" });
-      } else {
-        forbiddenResponse({ res });
-      }
+      res?.status(200).send({ status: 200, message: "Sukses nambah data" });
     })
     .catch((e) => {
       errResponse({ res, e });
     });
 });
 
-router.post("/addMultipleDataMhs", verifyJWT, (req, res) => {
+router.post("/addMultipleDataMhs", verifyJWT, forbiddenResponse, (req, res) => {
   const { arrDatas } = req.body;
-  const dataJWT = decodeJWT({ req });
 
-  multipleFn({ model: mhs, arrDatas, type: "add" })
+  multipleFn({
+    model: mhs,
+    arrDatas: arrDatas?.map(async (data) => {
+      const hashPassword = await encryptPassword(
+        data?.password || "password123"
+      );
+      return {
+        ...data,
+        password: hashPassword,
+      };
+    }),
+    type: "add",
+  })
     ?.then(() => {
-      if (dataJWT?.roles === 1) {
-        res?.status(200).send({ status: 200, message: "Sukses nambah data" });
-      } else {
-        forbiddenResponse({ res });
-      }
+      res?.status(200).send({ status: 200, message: "Sukses nambah data" });
     })
     ?.catch((e) => {
       errResponse({ res, e });
@@ -117,7 +121,7 @@ router.post("/updateDataMhs", verifyJWT, (req, res) => {
       res?.status(200).send({ status: 200, message: "Sukses update data" });
     })
     ?.catch((e) => {
-      res?.status(400).send(e);
+      errResponse({ e, res });
     });
 });
 
@@ -133,7 +137,7 @@ router.post(
         res?.status(200).send({ status: 200, message: "Sukses update data" });
       })
       ?.catch((e) => {
-        res?.status(400).send(e);
+        errResponse({ e, res });
       });
   }
 );
@@ -147,7 +151,7 @@ router.post("/deleteDataMhs", verifyJWT, (req, res) => {
       res?.status(200)?.send({ status: 200, message: "Sukses delete data" });
     })
     ?.catch((e) => {
-      res?.status(400).send(e);
+      errResponse({ e, res });
     });
 });
 

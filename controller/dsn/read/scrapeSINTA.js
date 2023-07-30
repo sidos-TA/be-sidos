@@ -1,0 +1,32 @@
+const { JSDOM } = require("jsdom");
+const sameArrObj = require("../../../helpers/sameArrObj");
+const scrapePages = require("../../scrapePages");
+
+const scrapeSINTA = async (sinta_id, viewType) => {
+  const pages = await scrapePages(
+    `https://sinta.kemdikbud.go.id/authors/profile/${sinta_id}/?view=${viewType}`
+  );
+
+  const dom = new JSDOM(pages).window.document;
+
+  const arrPenelitian = [];
+  const arrBidang = [];
+
+  dom.querySelectorAll(".ar-list-item").forEach((data) => {
+    const title = data?.querySelector(".ar-title a").textContent;
+    const link_title = data?.querySelector(".ar-title a").getAttribute("href");
+
+    arrPenelitian.push({ title, link_title });
+  });
+
+  dom.querySelectorAll(".subject-list").forEach((data) => {
+    arrBidang.push(data?.textContent);
+  });
+
+  return {
+    dataPenelitian: sameArrObj({ arr: arrPenelitian, props: "title" }),
+    bidang: arrBidang,
+  };
+};
+
+module.exports = scrapeSINTA;

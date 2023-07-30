@@ -22,8 +22,8 @@ app.use(
     // exposedHeaders: ["set-cookie"],
   })
 );
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: "16mb" }));
+app.use(express.json({ limit: "16mb" }));
 
 app.use(mhsRoute);
 app.use(dsnRoute);

@@ -1,9 +1,9 @@
 const decodeJWT = require("./decodeJWT");
 
-const forbiddenResponse = (req, res, next) => {
+const forbiddenResponseDosen = (req, res, next) => {
   const dataJWT = decodeJWT({ req });
 
-  if (dataJWT?.roles === 1) {
+  if (dataJWT?.roles === 2) {
     next();
   } else {
     res?.status(403)?.send({
@@ -13,4 +13,4 @@ const forbiddenResponse = (req, res, next) => {
   }
 };
 
-module.exports = forbiddenResponse;
+module.exports = forbiddenResponseDosen;

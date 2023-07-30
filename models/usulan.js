@@ -33,10 +33,15 @@ module.exports = (sequelize, DataTypes) => {
       jdl_from_dosen: DataTypes.STRING,
       file_pra_proposal: DataTypes.BLOB,
       status_usulan: {
-        type: DataTypes.ENUM("confirm", "partially confirm", "no confirm"),
-        defaultValue: "no confirm",
+        type: DataTypes.ENUM(
+          "confirmed",
+          "partially confirmed",
+          "no confirm",
+          "unavailable"
+        ),
+        defaultValue: "no confirmed",
       },
-      deletedAt: DataTypes.DATE,
+      // deletedAt: DataTypes.DATE,
 
       /**
        * - confirm, kalau smua usulan di konfimrasi dosen terkait
@@ -47,7 +52,7 @@ module.exports = (sequelize, DataTypes) => {
     {
       sequelize,
       modelName: "usulan",
-      paranoid: true,
+      // paranoid: true,
     }
   );
   return usulan;

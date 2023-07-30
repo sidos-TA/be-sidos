@@ -1,7 +1,5 @@
-'use strict';
-const {
-  Model
-} = require('sequelize');
+"use strict";
+const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
   class forbiddenMethod extends Model {
     /**
@@ -13,11 +11,15 @@ module.exports = (sequelize, DataTypes) => {
       // define association here
     }
   }
-  forbiddenMethod.init({
-    methodName: DataTypes.STRING
-  }, {
-    sequelize,
-    modelName: 'forbiddenMethod',
-  });
+  forbiddenMethod.init(
+    {
+      methodName: DataTypes.STRING,
+      tingkatan: DataTypes.STRING,
+    },
+    {
+      sequelize,
+      modelName: "forbiddenMethod",
+    }
+  );
   return forbiddenMethod;
 };

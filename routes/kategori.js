@@ -4,6 +4,7 @@ const readFn = require("../helpers/mainFn/readFn");
 const multipleFn = require("../helpers/mainFn/multipleFn");
 const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
+const errResponse = require("../helpers/errResponse");
 
 // -GET-
 router.post(
@@ -22,7 +23,7 @@ router.post(
       });
       res?.status(200)?.send({ status: 200, data: arrDatas });
     } catch (e) {
-      res.status(400).send({ status: 400, data: [], message: e?.message });
+      errResponse({ res, e });
     }
   }
 );
@@ -40,7 +41,7 @@ router.post("/updateKategori", verifyJWT, forbiddenResponse, (req, res) => {
       res?.status(200).send({ status: 200, message: "Sukses update data" });
     })
     ?.catch((e) => {
-      res?.status(400)?.send(e);
+      errResponse({ res, e });
     });
 });
 

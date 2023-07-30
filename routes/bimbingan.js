@@ -24,12 +24,17 @@ const {
 } = require("../controller/bimbingan/deleteBimbingan/deleteDataBimbingan");
 const readFn = require("../helpers/mainFn/readFn");
 const formatResponseSameKey = require("../controller/bimbingan/formatResponseSameKey");
-const updateFn = require("../helpers/mainFn/updateFn");
 const deleteFn = require("../helpers/mainFn/deleteFn");
 const errResponse = require("../helpers/errResponse");
 const filterByKey = require("../helpers/filterByKey");
 const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
+const createFn = require("../helpers/mainFn/createFn");
+const { uuid } = require("uuidv4");
+const multipleFn = require("../helpers/mainFn/multipleFn");
+const updateJudulAddJudulMhs = require("../controller/bimbingan/addBimbingan/updateJudulAddJudulMhs");
+const deleteIfSttsUsulanNotConfirm = require("../controller/bimbingan/addBimbingan/deleteIfSttsUsulanNotConfirm");
+const updateFn = require("../helpers/mainFn/updateFn");
 
 // -READ-
 router.post("/getBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
@@ -120,7 +125,8 @@ router.post(
 
 // -CREATE-
 router.post("/addBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
-  const { no_bp, nip, judul, bidang, tingkatan, status_judul } = req.body;
+  const { no_bp, nip, judul, bidang, tingkatan, status_judul, status_usulan } =
+    req.body;
   try {
     const getDataUsulan = await readFn({
       model: usulan,
@@ -141,59 +147,78 @@ router.post("/addBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
     );
 
     if (Array.isArray(nip)) {
+      const arrDatas = nip?.map((dataNip) => {
+        return {
+          ...req?.body,
+          status_usulan,
+          nip: dataNip,
+          id: uuid(),
+        };
+      });
+
+      // ini kalau skenario dari unavailable ke confirmed
+      const dataUsulan =
+        status_usulan !== "no_confirm" ? arrDatas : arrUsulanChoosed;
+      // hapus data dosen yang g kepilih
+
+      await deleteFn({
+        model: usulan,
+        where: {
+          nip: arrUsulanNotChoosed?.map((usul) => usul?.nip),
+          no_bp,
+        },
+      });
       // kalau usulan telah diterima 2 dosen
       if (nip?.length === 2) {
         bimbingan.addHook("afterBulkCreate", async (bimbingan, options) => {
           // add data judul (judul)
-          addToTabelJudul({ judul, bidang, options, tingkatan })
-            ?.then(() => {
-              // hapus dosen usul yg g kpilih
-              deleteFn({
-                model: usulan,
-                where: {
-                  nip: arrUsulanNotChoosed?.map((usul) => usul?.nip),
-                },
-                isTransaction: true,
-                transaction: options?.transaction,
-              })
-                ?.then(() => {
-                  // add jumlah n_mhs_bimbingan  (dosen)
-                  updateStatusJudul({ status_judul, no_bp, options })
-                    ?.then(() => {
-                      // tambah judul acc ke mhs (mhs)
-                      updateFn({
-                        model: mhs,
-                        data: {
-                          judul_acc: judul,
-                        },
-                        isTransaction: true,
-                        transaction: options?.transaction,
-                        where: {
-                          no_bp,
-                        },
-                      })?.then(() => {
-                        // update status_usulan (usulan)
-                        /**Entah knp pakai multipleFn malah auto nambah n_mhs_usulan */
-                        nip?.forEach((dataNip) => {
-                          updateFn({
-                            model: usulan,
-                            data: {
-                              status_usulan: "confirm",
-                            },
-                            where: {
-                              nip: dataNip,
-                            },
-                          });
-                        });
-                      });
-                    })
-                    ?.catch((e) => {
-                      throw new Error(e);
-                    });
-                })
-                ?.catch((e) => {
-                  throw new Error(e);
+          if (status_judul === "terima") {
+            await addToTabelJudul({
+              judul,
+              bidang,
+              options,
+              tingkatan,
+            });
+          }
+          // update  tambah judul acc ke mhs (mhs)
+          updateJudulAddJudulMhs({
+            judul,
+            no_bp,
+            options,
+            status_judul,
+          })
+            ?.then(async () => {
+              if (status_usulan !== "no confirmed") {
+                await deleteIfSttsUsulanNotConfirm({ no_bp, options });
+                nip?.forEach((dataNip) => {
+                  createFn({
+                    model: usulan,
+                    data: {
+                      ...req?.body,
+                      nip: dataNip,
+                      status_usulan: "confirmed",
+                      id: uuid(),
+                    },
+                    isTransaction: true,
+                    transaction: options?.transaction,
+                  });
                 });
+              } else {
+                arrUsulanChoosed?.forEach((usul) => {
+                  updateFn({
+                    model: usulan,
+                    data: {
+                      status_usulan: "confirmed",
+                    },
+                    isTransaction: true,
+                    transaction: options?.transaction,
+                    where: {
+                      no_bp,
+                      nip: usul?.nip,
+                    },
+                  });
+                });
+              }
             })
             ?.catch((e) => {
               throw new Error(e);
@@ -203,7 +228,7 @@ router.post("/addBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
         await sequelize?.transaction(async (transaction) => {
           // add ke tabel bimbingan
           addToTabelBimbingan({
-            arrDatas: arrUsulanChoosed?.map((usul) => ({
+            arrDatas: dataUsulan?.map((usul) => ({
               ...usul,
               status_judul,
             })),
@@ -211,35 +236,42 @@ router.post("/addBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
           });
         });
 
-        res
-          .status(200)
-          .send({ status: 200, message: "Sukses nambah bimbingan" });
+        res.status(200).send({
+          status: 200,
+          message: "Sukses nambah bimbingan",
+        });
       } else if (nip?.length === 1) {
         // update status_usulan
-        updateStatusUsulan({ no_bp, status_usulan: "partially confirm" })
+        updateStatusUsulan({
+          arrDatas: dataUsulan,
+          status_usulan: "partially confirmed",
+          no_bp,
+        });
+        res?.status(200)?.send({
+          status: 200,
+          message: "Sukses update status usulan mahasiswa partially confirmed",
+        });
+      } else {
+        // data usulan diambil pertama dan dosennya akan null, status usulan mhs jdi unavailable
+        const dataUsulanUnavailable = {
+          ...arrDatasUsulan?.[0],
+          nip: null,
+          status_usulan: "unavailable",
+        };
+
+        // pakai create karena udh di apus utk smua dosen yg g kepilih
+        createFn({
+          model: usulan,
+          data: dataUsulanUnavailable,
+        })
           ?.then(() => {
             res?.status(200)?.send({
               status: 200,
               message: "Sukses update status usulan mahasiswa",
             });
           })
-          ?.catch(() => {
-            errResponse({ res, e: "Butuh 1 dosen lagi untuk jadi pembimbing" });
-          });
-      } else {
-        updateStatusUsulan({ no_bp, status_usulan: "no confirm" })
-          ?.then(() => {
-            res?.status(200)?.send({
-              status: 200,
-              message:
-                "Sukses update status usulan mahasiswa menjadi no confirm",
-            });
-          })
-          ?.catch(() => {
-            errResponse({
-              res,
-              e: "Setidaknya 2 dosen untuk jadi dosen pembimbing",
-            });
+          ?.catch((e) => {
+            throw new Error(e);
           });
       }
     }
@@ -280,7 +312,7 @@ router.post(
         ?.status(200)
         ?.send({ status: 200, message: "Sukses hapus data bimbingan" });
     } catch (e) {
-      res?.status(400)?.send({ error: e?.message, status: 400 });
+      errResponse({ res, e });
     }
   }
 );

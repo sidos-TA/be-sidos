@@ -37,7 +37,7 @@ router.post("/addJudul", verifyJWT, forbiddenResponse, async (req, res) => {
     });
     res.status(200).send({ status: 200, data: "Sukses nambah judul" });
   } catch (e) {
-    res.status(400).send({ status: 400, message: e });
+    errResponse({ res, e });
   }
 });
 
@@ -55,7 +55,7 @@ router.post(
       });
       res.status(200).send({ status: 200, data: "Sukses nambah judul" });
     } catch (e) {
-      res.status(400).send({ status: 400, message: e });
+      errResponse({ res, e });
     }
   }
 );
@@ -78,7 +78,7 @@ router.post(
 
       res.status(200).send({ status: 200, message: "Sukses update data" });
     } catch (e) {
-      res.status(400).send({ status: 400, message: e });
+      errResponse({ res, e });
     }
   }
 );
@@ -98,7 +98,7 @@ router.post(
 
       res.status(200).send({ status: 200, message: "Sukses update data" });
     } catch (e) {
-      res.status(400).send({ status: 400, message: e });
+      errResponse({ res, e });
     }
   }
 );
@@ -112,7 +112,7 @@ router.post("/deleteDataJudul", verifyJWT, forbiddenResponse, (req, res) => {
       res?.status(200)?.send({ status: 200, message: "Sukses delete data" });
     })
     ?.catch((e) => {
-      res?.status(400).send(e);
+      errResponse({ res, e });
     });
 });
 

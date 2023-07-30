@@ -29,8 +29,14 @@ module.exports = (sequelize, DataTypes) => {
         // type: Sequelize.INTEGER,
       },
       name: DataTypes.STRING,
-      username: DataTypes.STRING,
-      password: DataTypes.TEXT,
+      photo: DataTypes.BLOB("medium"),
+      password: {
+        type: DataTypes.TEXT,
+        defaultValue: {
+          type: DataTypes.TEXT,
+          defaultValue: "password123",
+        },
+      },
       bidang: DataTypes.TEXT,
       sks: DataTypes.INTEGER,
       jabatan: DataTypes.STRING,

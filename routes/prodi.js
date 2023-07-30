@@ -32,7 +32,7 @@ router.post("/addProdi", verifyJWT, forbiddenResponse, async (req, res) => {
     });
     res.status(200).send({ status: 200, data: "Sukses nambah prodi" });
   } catch (e) {
-    res.status(400).send({ status: 400, message: e });
+    errResponse({ res, e });
   }
 });
 
@@ -50,7 +50,7 @@ router.post(
       });
       res.status(200).send({ status: 200, data: "Sukses nambah prodi" });
     } catch (e) {
-      res.status(400).send({ status: 400, message: e });
+      errResponse({ res, e });
     }
   }
 );
@@ -73,7 +73,7 @@ router.post(
 
       res.status(200).send({ status: 200, message: "Sukses update prodi" });
     } catch (e) {
-      res.status(400).send({ status: 400, message: e });
+      errResponse({ res, e });
     }
   }
 );
@@ -93,7 +93,7 @@ router.post(
 
       res.status(200).send({ status: 200, message: "Sukses update prodi" });
     } catch (e) {
-      res.status(400).send({ status: 400, message: e });
+      errResponse({ res, e });
     }
   }
 );
@@ -107,7 +107,7 @@ router.post("/deleteDataProdi", verifyJWT, forbiddenResponse, (req, res) => {
       res?.status(200)?.send({ status: 200, message: "Sukses delete prodi" });
     })
     ?.catch((e) => {
-      res?.status(400).send(e);
+      errResponse({ res, e });
     });
 });
 

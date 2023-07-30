@@ -1,5 +1,6 @@
 const formatResponseSameKey = require("../controller/bimbingan/formatResponseSameKey");
 const scrapeGS = require("../controller/dsn/read/scrapeGS");
+const scrapeSINTA = require("../controller/dsn/read/scrapeSINTA");
 const scrapeSIPEG = require("../controller/dsn/read/scrapeSIPEG");
 const encryptPassword = require("../helpers/encryptPassword");
 const errResponse = require("../helpers/errResponse");
@@ -15,7 +16,7 @@ const { dosen, bimbingan, mhs, usulan } = require("../models");
 const router = require("./router");
 
 // -READ-
-router.post("/getAllDosen", verifyJWT, forbiddenResponse, async (req, res) => {
+router.post("/getAllDosen", verifyJWT, async (req, res) => {
   const { page } = req.body;
   try {
     const objSearch = filterByKey({ req });
@@ -75,10 +76,32 @@ router.post(
 
       res.status(200).send({ status: 200, data: dataDosen });
     } catch (e) {
-      res.status(400).send({ status: 400, message: e?.message });
+      errResponse({ res, e });
     }
   }
 );
+
+router.post("/scrapeSINTA", async (req, res) => {
+  const { sinta_id } = req.body;
+
+  try {
+    const dataScopus = await scrapeSINTA(sinta_id, "scopus");
+    const dataWOS = await scrapeSINTA(sinta_id, "wos");
+    const dataGaruda = await scrapeSINTA(sinta_id, "garuda");
+    const dataGS = await scrapeSINTA(sinta_id, "googlescholar");
+    const dataRAMA = await scrapeSINTA(sinta_id, "rama");
+
+    const data = [dataScopus, dataWOS, dataGaruda, dataGS, dataRAMA];
+    // const redData = data?.reduce((init, curr) => {
+    //   init = [...curr.dataPenelitian];
+    //   return init;
+    // }, []);
+
+    res.status(200).send({ status: 200, data });
+  } catch (e) {
+    errResponse({ res, e });
+  }
+});
 
 router.post("/scrapeGS", verifyJWT, forbiddenResponse, async (req, res) => {
   const { gs_url } = req.body;
@@ -148,12 +171,24 @@ router.post(
   (req, res) => {
     const { arrDatas } = req.body;
 
-    multipleFn({ model: dosen, arrDatas, type: "add" })
+    multipleFn({
+      model: dosen,
+      arrDatas: arrDatas?.map((data) => {
+        // const hashedPassword = await encryptPassword(
+        //   data?.password || "password123"
+        // );
+        return {
+          ...data,
+          password: "password123",
+        };
+      }),
+      type: "add",
+    })
       ?.then(() => {
         res?.status(200).send({ status: 200, message: "Sukses nambah data" });
       })
       ?.catch((e) => {
-        res?.status(400).send({ message: e?.message });
+        errResponse({ res, e });
       });
   }
 );
@@ -167,7 +202,7 @@ router.post("/updateDataDosen", verifyJWT, forbiddenResponse, (req, res) => {
       res?.status(200).send({ status: 200, message: "Sukses update data" });
     })
     ?.catch((e) => {
-      res?.status(400).send(e);
+      errResponse({ res, e });
     });
 });
 
@@ -183,7 +218,7 @@ router.post(
         res?.status(200).send({ status: 200, message: "Sukses update data" });
       })
       ?.catch((e) => {
-        res?.status(400).send(e);
+        errResponse({ res, e });
       });
   }
 );
@@ -197,7 +232,7 @@ router.post("/deleteDataDosen", verifyJWT, forbiddenResponse, (req, res) => {
       res?.status(200)?.send({ status: 200, message: "Sukses delete data" });
     })
     ?.catch((e) => {
-      res?.status(400).send(e);
+      errResponse({ res, e });
     });
 });
 

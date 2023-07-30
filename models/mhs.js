@@ -24,12 +24,10 @@ module.exports = (sequelize, DataTypes) => {
       no_bp: {
         allowNull: false,
         primaryKey: true,
-        // autoIncrement: true,
-        // type: Sequelize.INTEGER,
         type: DataTypes.CHAR(36),
       },
       name: DataTypes.STRING,
-      username: DataTypes.STRING,
+      photo: DataTypes.BLOB("medium"),
       password: {
         type: DataTypes.TEXT,
         defaultValue: {

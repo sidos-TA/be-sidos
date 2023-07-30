@@ -13,8 +13,8 @@ module.exports = {
       name: {
         type: Sequelize.STRING,
       },
-      username: {
-        type: Sequelize.STRING,
+      photo: {
+        type: Sequelize.BLOB("medium"),
       },
       password: {
         type: Sequelize.TEXT,

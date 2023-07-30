@@ -1,7 +1,7 @@
 const unAuthResponse = ({ res }) => {
   return res?.status(401)?.send({
     status: 401,
-    message: "Login ulang",
+    error: "Login ulang",
   });
 };
 
