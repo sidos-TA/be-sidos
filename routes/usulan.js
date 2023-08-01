@@ -239,7 +239,9 @@ router.post("/getDataBidang", async (req, res) => {
     });
     const arrDatas = JSON.parse(JSON.stringify(getDatas));
 
-    const arrBidangs = arrDatas?.map((data) => JSON.parse(data?.bidang));
+    const arrBidangs = arrDatas?.map((data) =>
+      JSON.parse(data?.bidang || "[]")
+    );
 
     const arrNotRepeatBidangs = arrBidangs?.reduce((init, curr) => {
       init = [...new Set([...init, ...curr])];

@@ -93,13 +93,10 @@ router.post("/addMultipleDataMhs", verifyJWT, forbiddenResponse, (req, res) => {
 
   multipleFn({
     model: mhs,
-    arrDatas: arrDatas?.map(async (data) => {
-      const hashPassword = await encryptPassword(
-        data?.password || "password123"
-      );
+    arrDatas: arrDatas?.map((data) => {
       return {
         ...data,
-        password: hashPassword,
+        password: "password123",
       };
     }),
     type: "add",

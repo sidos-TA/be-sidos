@@ -38,7 +38,9 @@ router.post("/updateKategori", verifyJWT, forbiddenResponse, (req, res) => {
     type: "update",
   })
     ?.then(() => {
-      res?.status(200).send({ status: 200, message: "Sukses update data" });
+      res
+        ?.status(200)
+        .send({ status: 200, message: "Sukses update data kategori" });
     })
     ?.catch((e) => {
       errResponse({ res, e });

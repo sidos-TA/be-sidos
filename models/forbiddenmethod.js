@@ -14,6 +14,7 @@ module.exports = (sequelize, DataTypes) => {
   forbiddenMethod.init(
     {
       methodName: DataTypes.STRING,
+      bidang: DataTypes.STRING,
       tingkatan: DataTypes.STRING,
     },
     {

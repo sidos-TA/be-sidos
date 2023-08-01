@@ -5,6 +5,9 @@ const { Op } = require("sequelize");
 const comparedPassword = require("../helpers/comparedPassword");
 const jwt = require("jsonwebtoken");
 const errResponse = require("../helpers/errResponse");
+const updateFn = require("../helpers/mainFn/updateFn");
+const verifyJWT = require("../helpers/verifyJWT");
+const bcrypt = require("bcrypt");
 
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
@@ -47,7 +50,7 @@ router.post("/login", async (req, res) => {
             },
             process.env.JWT_SECRET_KEYS,
             // { expiresIn: process.env.JWT_EXPIRES_IN },
-            { expiresIn: 3600 },
+            { expiresIn: 360 },
             { algorithm: "RS256" }
           );
 
@@ -73,6 +76,47 @@ router.post("/login", async (req, res) => {
     }
   } catch (e) {
     errResponse({ res, e });
+  }
+});
+
+router.post("/change_password", verifyJWT, async (req, res) => {
+  const { new_password, old_password } = req.body;
+  try {
+    const nipOrNoBp = "nip" in req.body ? "nip" : "no_bp";
+    const model = "nip" in req.body ? dosen : mhs;
+
+    const objDataUser = await readFn({
+      model,
+      type: "find",
+      where: {
+        [nipOrNoBp]: req.body?.[nipOrNoBp],
+      },
+      usePaginate: false,
+    });
+
+    const isPasswordValid = await comparedPassword(
+      old_password,
+      objDataUser?.password
+    );
+
+    if (isPasswordValid) {
+      await updateFn({
+        model: dosen,
+        data: {
+          password: new_password,
+        },
+        where: {
+          [nipOrNoBp]: req.body?.[nipOrNoBp],
+        },
+      });
+      res.status(200)?.send({ status: 200, message: "Sukses update password" });
+    } else {
+      res
+        .status(404)
+        ?.send({ status: 404, error: "Password yang lama tidak sesuai" });
+    }
+  } catch (e) {
+    errResponse({ e, res });
   }
 });
 

@@ -16,8 +16,25 @@ router.post("/getAllProdi", verifyJWT, forbiddenResponse, async (req, res) => {
     const arrDatasProdi = await readFn({
       model: prodi,
       type: "all",
+      isExcludeId: false,
     });
     res?.status(200)?.send({ status: 200, data: arrDatasProdi });
+  } catch (e) {
+    errResponse({ res, e });
+  }
+});
+router.post("/getProdiById", verifyJWT, forbiddenResponse, async (req, res) => {
+  const { id } = req.body;
+  try {
+    const objDataProdi = await readFn({
+      model: prodi,
+      type: "find",
+      usePaginate: false,
+      where: {
+        id,
+      },
+    });
+    res?.status(200)?.send({ status: 200, data: objDataProdi });
   } catch (e) {
     errResponse({ res, e });
   }
@@ -48,7 +65,7 @@ router.post(
         arrDatas: arrDatas?.map((data) => ({ ...data, id: uuid() })),
         type: "add",
       });
-      res.status(200).send({ status: 200, data: "Sukses nambah prodi" });
+      res.status(200).send({ status: 200, message: "Sukses nambah prodi" });
     } catch (e) {
       errResponse({ res, e });
     }

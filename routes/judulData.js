@@ -9,6 +9,7 @@ const readFn = require("../helpers/mainFn/readFn");
 const errResponse = require("../helpers/errResponse");
 const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
+const { uuid } = require("uuidv4");
 
 // -READ-
 router.post("/getJudul", async (req, res) => {
@@ -21,6 +22,7 @@ router.post("/getJudul", async (req, res) => {
       ...(Object.keys(objSearch)?.length && {
         usePaginate: false,
       }),
+      isExcludeId: false,
     });
 
     res?.status(200)?.send({ status: 200, data: arrDatasJudul });
@@ -28,6 +30,24 @@ router.post("/getJudul", async (req, res) => {
     errResponse({ e, res });
   }
 });
+
+router.post("/getJudulById", async (req, res) => {
+  const { id } = req.body;
+  try {
+    const arrDatasJudul = await readFn({
+      model: judulData,
+      type: "find",
+      where: { id },
+      usePaginate: false,
+      isExcludeId: false,
+    });
+
+    res?.status(200)?.send({ status: 200, data: arrDatasJudul });
+  } catch (e) {
+    errResponse({ e, res });
+  }
+});
+
 // -CREATE-
 router.post("/addJudul", verifyJWT, forbiddenResponse, async (req, res) => {
   try {
@@ -50,10 +70,10 @@ router.post(
     try {
       await multipleFn({
         model: judulData,
-        arrDatas: arrDatas,
+        arrDatas: arrDatas?.map((data) => ({ ...data, id: uuid() })),
         type: "add",
       });
-      res.status(200).send({ status: 200, data: "Sukses nambah judul" });
+      res.status(200).send({ status: 200, message: "Sukses nambah judul" });
     } catch (e) {
       errResponse({ res, e });
     }
