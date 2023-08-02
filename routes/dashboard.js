@@ -56,9 +56,9 @@ router.post(
         model: mhs,
         type: "all",
         usePaginate: false,
-        where: {
-          is_usul: true,
-        },
+        // where: {
+        //   is_usul: true,
+        // },
       });
       const arrDatasMhs = JSON.parse(JSON.stringify(getDatasMhs));
       const filteredDatasMhs = (statusJudul) => {
@@ -93,6 +93,7 @@ router.post(
       res.status(200).send({
         status: 200,
         data: arrDatasGraphStatusJudul,
+        arrDatasMhs,
       });
     } catch (e) {
       errResponse({ res, e });

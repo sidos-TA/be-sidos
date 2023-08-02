@@ -17,6 +17,9 @@ module.exports = {
       kGram: {
         type: Sequelize.INTEGER,
       },
+      maksimal_usulan: {
+        type: Sequelize.INTEGER,
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE,

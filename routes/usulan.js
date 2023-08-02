@@ -16,6 +16,7 @@ const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
 const forbiddenResponseDosen = require("../helpers/forbiddenResponseDosen");
 const createFn = require("../helpers/mainFn/createFn");
+const isStringParseArr = require("../helpers/isStringParseArr");
 
 // -READ-
 router?.post("/getSPK", async (req, res) => {
@@ -91,7 +92,7 @@ router?.post("/getSPK", async (req, res) => {
       res.status(200).send({
         status: 200,
         data: dataDosenBySPK,
-        // arrDsnDataForSPK,
+        arrDsnDataForSPK,
         // arrDatasDosen,
       });
     } else {
@@ -239,16 +240,26 @@ router.post("/getDataBidang", async (req, res) => {
     });
     const arrDatas = JSON.parse(JSON.stringify(getDatas));
 
-    const arrBidangs = arrDatas?.map((data) =>
-      JSON.parse(data?.bidang || "[]")
-    );
+    const arrBidangs = arrDatas?.map((data) => {
+      if (isStringParseArr(data?.bidang)) {
+        return JSON.parse(data?.bidang || "[]");
+      }
+      return data?.bidang;
+    });
 
-    const arrNotRepeatBidangs = arrBidangs?.reduce((init, curr) => {
-      init = [...new Set([...init, ...curr])];
-      return init;
-    }, []);
+    if (arrBidangs?.length && arrBidangs?.every((data) => data !== null)) {
+      const arrNotRepeatBidangs = arrBidangs?.reduce((init, curr) => {
+        init = [...new Set([...init, ...curr])];
+        return init;
+      }, []);
 
-    res?.status(200)?.send({ status: 200, data: arrNotRepeatBidangs });
+      res?.status(200)?.send({ status: 200, data: arrNotRepeatBidangs });
+    } else {
+      res?.status(400)?.send({
+        status: 400,
+        error: "Data bidang kosong, mohon tambahkan data dosen",
+      });
+    }
   } catch (e) {
     errResponse({ res, e });
   }

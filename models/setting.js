@@ -21,10 +21,11 @@ module.exports = (sequelize, DataTypes) => {
       },
       kuota_bimbingan: DataTypes.INTEGER,
       kGram: DataTypes.INTEGER,
+      maksimal_usulan: DataTypes.INTEGER,
     },
     {
       sequelize,
-      modelName: "Setting",
+      modelName: "setting",
     }
   );
   return Setting;
