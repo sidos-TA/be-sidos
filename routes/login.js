@@ -49,7 +49,7 @@ router.post("/login", async (req, res) => {
               }),
             },
             process.env.JWT_SECRET_KEYS,
-            { expiresIn: process.env.JWT_EXPIRES_IN },
+            { expiresIn: Number(process.env.JWT_EXPIRES_IN) },
             // { expiresIn: 3600 },
             { algorithm: "RS256" }
           );

@@ -1,6 +1,14 @@
 const readFn = require("../helpers/mainFn/readFn");
 const router = require("./router");
-const { mhs, dosen, kategori, usulan, sequelize } = require("../models");
+const {
+  mhs,
+  dosen,
+  kategori,
+  judulData,
+  usulan,
+  setting,
+  sequelize,
+} = require("../models");
 const arrJabatanDatas = require("../constants/jabatanValue");
 const arrPendidikanValue = require("../constants/pendidikanValue");
 const { EDAS_Winnowing } = require("../spk_module/EDAS_Winnowing");
@@ -17,6 +25,8 @@ const forbiddenResponse = require("../helpers/forbiddenResponse");
 const forbiddenResponseDosen = require("../helpers/forbiddenResponseDosen");
 const createFn = require("../helpers/mainFn/createFn");
 const isStringParseArr = require("../helpers/isStringParseArr");
+const { jaccardSimilarityHandler } = require("../spk_module/Winnowing");
+const { uniqueArrObj, uniqueArr } = require("../helpers/uniqueArr_ArrObj");
 
 // -READ-
 router?.post("/getSPK", async (req, res) => {
@@ -104,13 +114,31 @@ router?.post("/getSPK", async (req, res) => {
 });
 
 router.post("/getUsulan", verifyJWT, async (req, res) => {
-  const { no_bp } = req.body;
+  const { no_bp, status_judul } = req.body;
   try {
     const objSearch = filterByKey({ req });
+
+    if (status_judul) {
+      delete objSearch["status_judul"];
+      objSearch["$mh.status_judul$"] = status_judul;
+      objSearch["status_usulan"] = "confirmed";
+    }
+
     const getDatasUsulan = await readFn({
       model: usulan,
       type: "all",
-      include: [dosen, mhs],
+      include: [
+        dosen,
+        {
+          model: mhs,
+          ...(status_judul && {
+            where: {
+              "$mh.status_judul$": status_judul,
+            },
+          }),
+        },
+      ],
+
       where: {
         ...objSearch,
         ...(no_bp && {
@@ -119,6 +147,7 @@ router.post("/getUsulan", verifyJWT, async (req, res) => {
       },
       order: [["createdAt", "ASC"]],
     });
+
     const getDatasMhsByNoBp = await readFn({
       model: mhs,
       type: "find",
@@ -148,7 +177,7 @@ router.post("/getUsulan", verifyJWT, async (req, res) => {
 });
 
 router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
-  const { no_bp } = req.body;
+  const { no_bp, status_judul } = req.body;
   try {
     const getDataUsulan = await readFn({
       model: usulan,
@@ -207,6 +236,15 @@ router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
         });
       });
 
+      // hapus data penelitian dan ini utk menu keputusan
+      if (status_judul) {
+        arrDatas?.forEach((data) => {
+          delete data["penelitian"];
+          delete data["password"];
+          delete data["usulans"];
+        });
+      }
+
       res?.status(200)?.send({
         status: 200,
         data: {
@@ -226,6 +264,7 @@ router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
         error: `No. Bp ${no_bp} tidak ditemukan`,
       });
     }
+    // res.status(200).send({ status: 200, message: "s" });
   } catch (e) {
     errResponse({ res, e });
   }
@@ -264,6 +303,68 @@ router.post("/getDataBidang", async (req, res) => {
     errResponse({ res, e });
   }
 });
+
+router.post("/getSimilaritasJudul", async (req, res) => {
+  const { judul_mhs } = req.body;
+  try {
+    const getDataJudul = await readFn({
+      model: judulData,
+      type: "all",
+      usePaginate: false,
+      isExcludeId: false,
+    });
+
+    const getDataUsulan = await readFn({
+      model: usulan,
+      usePaginate: false,
+      type: "all",
+    });
+
+    const getDataSetting = await readFn({
+      model: setting,
+      usePaginate: false,
+      type: "all",
+    });
+
+    const arrDataJudul = JSON.parse(JSON.stringify(getDataJudul));
+    const arrDataUsulan = JSON.parse(JSON.stringify(getDataUsulan));
+
+    const arrDataSetting = JSON.parse(JSON.stringify(getDataSetting));
+
+    if (arrDataSetting?.length) {
+      const judulDatas = uniqueArrObj({
+        arr: [...arrDataJudul, ...arrDataUsulan],
+        props: "judul",
+      });
+
+      const arrWinnowing = [];
+      judulDatas?.forEach((dataJudul) => {
+        const JSValue = jaccardSimilarityHandler({
+          strJudulMhs: judul_mhs,
+          strJudulPenelitian: dataJudul?.judul,
+          kGramCount: arrDataSetting?.[0]?.kGram,
+          windowCount: 3,
+        });
+
+        arrWinnowing?.push({
+          judul: dataJudul?.judul,
+          bidang: dataJudul?.bidang,
+          tingkatan: dataJudul?.tingkatan,
+          skor: JSValue,
+        });
+      });
+
+      res.status(200).send({ status: 200, data: arrWinnowing });
+    } else {
+      errResponse({ res, e: "Mohon berikan nilai kGram di setting" });
+    }
+
+    // jaccardSimilarityHandler;
+  } catch (e) {
+    errResponse({ res, e });
+  }
+});
+
 // -CREATE-
 router.post(
   "/addUsulan",

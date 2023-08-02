@@ -225,16 +225,31 @@ router.post("/addBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
             });
         });
 
-        await sequelize?.transaction(async (transaction) => {
-          // add ke tabel bimbingan
-          addToTabelBimbingan({
-            arrDatas: dataUsulan?.map((usul) => ({
-              ...usul,
-              status_judul,
-            })),
-            transaction,
+        if (!status_judul) {
+          arrUsulanChoosed?.forEach((usul) => {
+            updateFn({
+              model: usulan,
+              data: {
+                status_usulan: "confirmed",
+              },
+              where: {
+                no_bp,
+                nip: usul?.nip,
+              },
+            });
           });
-        });
+        } else {
+          await sequelize?.transaction(async (transaction) => {
+            // add ke tabel bimbingan
+            addToTabelBimbingan({
+              arrDatas: dataUsulan?.map((usul) => ({
+                ...usul,
+                status_judul,
+              })),
+              transaction,
+            });
+          });
+        }
 
         res.status(200).send({
           status: 200,
