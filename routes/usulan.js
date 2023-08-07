@@ -23,32 +23,105 @@ const filterByKey = require("../helpers/filterByKey");
 const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
 const forbiddenResponseDosen = require("../helpers/forbiddenResponseDosen");
-const createFn = require("../helpers/mainFn/createFn");
 const isStringParseArr = require("../helpers/isStringParseArr");
 const { jaccardSimilarityHandler } = require("../spk_module/Winnowing");
-const { uniqueArrObj, uniqueArr } = require("../helpers/uniqueArr_ArrObj");
+const { uniqueArrObj } = require("../helpers/uniqueArr_ArrObj");
+const sortArrObj = require("../helpers/sortArrObj");
+const yearNow = require("../constants/yearNow");
+const { where, Op } = require("sequelize");
 
 // -READ-
 router?.post("/getSPK", async (req, res) => {
-  const { page, judul, bidang, jdl_from_dosen } = req.body;
+  const {
+    page,
+    judul,
+    bidang,
+    jdl_from_dosen,
+    semester,
+    tahun = yearNow,
+  } = req.body;
   try {
-    // const getDatasDosen = await readFn({
-    //   model: dosen,
-    //   type: "all",
-    //   usePaginate: false,
-    // });
-    const getDatasDosen = await readFn({
+    const getSetting = await readFn({
+      model: setting,
+    });
+    const arrSetting = JSON.parse(JSON.stringify(getSetting));
+
+    const objSearch = filterByKey({ req });
+
+    delete objSearch["usePaginate"];
+    delete objSearch["showRoles"];
+    delete objSearch["semester"];
+    delete objSearch["tahun"];
+
+    const attrDosen = [
+      "name",
+      "nip",
+      "sks",
+      "jabatan",
+      "pendidikan",
+      "bidang",
+      "penelitian",
+    ];
+
+    const getDatas = await readFn({
       model: dosen,
       type: "all",
+      page,
       usePaginate: false,
-      attributes: {
-        include: [
-          [sequelize.fn("COUNT", sequelize.col("usulans.nip")), "n_mhs_usulan"],
-        ],
-      },
-      include: [usulan],
-      group: ["nip"],
+      attributes: attrDosen,
     });
+
+    const getUsulanMhsUsul = await readFn({
+      model: usulan,
+      attributes: ["nip", "status_judul", "status_usulan"],
+      where: {
+        semester: semester || arrSetting?.[0]?.semester || "",
+        tahun: tahun || "",
+      },
+    });
+    const getUsulanMhsBimbing = await readFn({
+      model: usulan,
+      attributes: ["nip", "status_judul", "status_usulan"],
+      where: {
+        status_usulan: "confirmed",
+        semester: semester || arrSetting?.[0]?.semester || "",
+        tahun: tahun || "",
+      },
+    });
+
+    const arrDatas = JSON.parse(JSON.stringify(getDatas));
+    const arrUsulanMhsUsul = JSON.parse(JSON.stringify(getUsulanMhsUsul));
+    const arrUsulanMhsBimbing = JSON.parse(JSON.stringify(getUsulanMhsBimbing));
+
+    const allData = [...arrDatas, ...arrUsulanMhsUsul, ...arrUsulanMhsBimbing];
+
+    // proses penentuan n_mhs_bimbingan dan n_mhs_usulan
+    const result = Object.values(
+      allData.reduce((init, curr) => {
+        if (!init[curr.nip]) {
+          init[curr.nip] = {
+            ...curr,
+            nip: curr.nip,
+            n_mhs_bimbingan: 0,
+            n_mhs_usulan: 0,
+          };
+        }
+
+        if (arrUsulanMhsBimbing.some((mhs) => mhs.nip === curr.nip)) {
+          init[curr.nip].n_mhs_bimbingan = arrUsulanMhsBimbing.filter(
+            (mhs) => mhs.nip === curr.nip
+          ).length;
+        }
+
+        if (arrUsulanMhsUsul.some((mhs) => mhs.nip === curr.nip)) {
+          init[curr.nip].n_mhs_usulan = arrUsulanMhsUsul.filter(
+            (mhs) => mhs.nip === curr.nip
+          ).length;
+        }
+
+        return init;
+      }, {})
+    );
 
     const getDataKategori = await readFn({
       model: kategori,
@@ -58,11 +131,10 @@ router?.post("/getSPK", async (req, res) => {
       usePaginate: false,
     });
 
-    const arrDatasDosen = JSON.parse(JSON.stringify(getDatasDosen));
     const arrKategori = JSON.parse(JSON.stringify(getDataKategori));
 
     if (arrKategori?.length) {
-      const arrDsnDataForSPK = arrDatasDosen.map((data) => {
+      const arrDsnDataForSPK = result.map((data) => {
         return {
           id: data?.id,
           dosenName: data?.name,
@@ -90,20 +162,18 @@ router?.post("/getSPK", async (req, res) => {
       });
 
       const dataDosenBySPK = [];
+
       spkResult?.forEach((spk) => {
-        arrDatasDosen?.forEach((dosen) => {
+        result?.forEach((dosen) => {
           if (dosen?.name === spk?.dosenName) {
             dataDosenBySPK.push({ ...dosen, skor: spk?.skor });
           }
         });
       });
 
-      // res.status(200).send({ status: 200, data: dataDosenBySPK, dataUsulan });
       res.status(200).send({
         status: 200,
         data: dataDosenBySPK,
-        arrDsnDataForSPK,
-        // arrDatasDosen,
       });
     } else {
       errResponse({ res, e: "Data kategori masih kosong" });
@@ -114,81 +184,94 @@ router?.post("/getSPK", async (req, res) => {
 });
 
 router.post("/getUsulan", verifyJWT, async (req, res) => {
-  const { no_bp, status_judul } = req.body;
+  const { no_bp, status_judul, semester, tahun = yearNow } = req.body;
   try {
     const objSearch = filterByKey({ req });
 
-    if (status_judul) {
-      delete objSearch["status_judul"];
-      objSearch["$mh.status_judul$"] = status_judul;
-      objSearch["status_usulan"] = "confirmed";
-    }
-
-    const getDatasUsulan = await readFn({
-      model: usulan,
+    const getDataSettings = await readFn({
+      model: setting,
       type: "all",
-      include: [
-        dosen,
-        {
-          model: mhs,
-          ...(status_judul && {
+    });
+
+    if (getDataSettings?.length) {
+      // skenario utk keputusan dan status judul tlah dikirim
+      if (status_judul) {
+        delete objSearch["status_judul"];
+        objSearch["$mh.status_judul$"] = status_judul;
+      }
+
+      const getDatasUsulan = await readFn({
+        model: usulan,
+        type: "all",
+        exclude: [
+          "nip",
+          "updatedAt",
+          "deletedAt",
+          "file_pra_proposal",
+          "jdl_from_dosen",
+          "keterangan",
+        ],
+        include: [
+          {
+            model: mhs,
             where: {
-              "$mh.status_judul$": status_judul,
+              ...(status_judul && {
+                ...(no_bp && {
+                  "$mh.no_bp$": no_bp,
+                }),
+                "$mh.status_judul$": status_judul,
+              }),
+              // "$mh.semester$": semester || getDataSettings?.[0]?.semester,
+              // "$mh.tahun$": tahun,
             },
-          }),
+            attributes: {
+              exclude: ["password", "roles", "no_bp"],
+            },
+          },
+        ],
+
+        where: {
+          ...objSearch,
+          semester: semester || getDataSettings?.[0]?.semester,
+          tahun,
         },
-      ],
+        group: ["no_bp"],
+      });
 
-      where: {
-        ...objSearch,
-        ...(no_bp && {
-          no_bp,
-        }),
-      },
-      order: [["createdAt", "ASC"]],
-    });
+      const arrDatasUsulan = JSON.parse(JSON.stringify(getDatasUsulan));
 
-    const getDatasMhsByNoBp = await readFn({
-      model: mhs,
-      type: "find",
-      where: {
-        ...(no_bp && {
-          no_bp,
-        }),
-      },
-      usePaginate: false,
-    });
-
-    const arrDatasUsulan = JSON.parse(JSON.stringify(getDatasUsulan));
-    const objDatasMhs = JSON.parse(JSON.stringify(getDatasMhsByNoBp));
-
-    const arrDatas = formatResponseSameKey({
-      arrDatas: arrDatasUsulan,
-      propsKey: "no_bp",
-      propsMergeToArray: "dosen",
-    });
-
-    res
-      .status(200)
-      .send({ status: 200, data: { arrDatas, is_usul: objDatasMhs?.is_usul } });
+      res.status(200).send({
+        status: 200,
+        data: arrDatasUsulan,
+      });
+    } else {
+      errResponse({
+        res,
+        e: "Mohon hubungi kaprodi untuk membuat setting terlebih dahulu",
+      });
+    }
   } catch (e) {
     errResponse({ res, e });
   }
 });
 
 router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
-  const { no_bp, status_judul } = req.body;
+  const { no_bp } = req.body;
   try {
     const getDataUsulan = await readFn({
       model: usulan,
       type: "all",
-
       usePaginate: false,
       isExcludeId: false,
       where: {
         no_bp,
       },
-      include: [dosen],
+      include: [
+        {
+          model: dosen,
+        },
+      ],
+      exclude: ["createdAt", "updatedAt", "roles"],
     });
 
     const getDataMhs = await readFn({
@@ -198,6 +281,21 @@ router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
       where: {
         no_bp,
       },
+      exclude: ["password", "roles"],
+      include: [
+        {
+          model: usulan,
+          attributes: [
+            "file_pra_proposal",
+            "bidang",
+            "jdl_from_dosen",
+            "judul",
+            "status_judul",
+            "status_usulan",
+          ],
+        },
+      ],
+      group: ["usulans.no_bp"],
     });
 
     const objDatasMhs = JSON.parse(JSON.stringify(getDataMhs));
@@ -208,6 +306,7 @@ router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
         type: "all",
         usePaginate: false,
         attributes: {
+          exclude: ["createdAt", "updatedAt", "roles", "password"],
           include: [
             [
               sequelize.fn("COUNT", sequelize.col("usulans.nip")),
@@ -218,13 +317,52 @@ router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
         include: [
           {
             model: usulan,
-            include: [mhs],
+            attributes: ["id"],
+            include: [
+              {
+                model: mhs,
+                attributes: {
+                  exclude: ["password", "roles", "name"],
+                },
+                where: {
+                  semester: objDatasMhs?.semester,
+                },
+              },
+            ],
           },
         ],
         group: ["nip"],
       });
+
+      const getMhsBimbingan = await readFn({
+        model: dosen,
+        type: "all",
+        usePaginate: false,
+        attributes: {
+          exclude: ["createdAt", "updatedAt", "roles", "password"],
+          include: [
+            [
+              sequelize.fn("COUNT", sequelize.col("usulans.nip")),
+              "n_mhs_bimbingan",
+            ],
+          ],
+        },
+        include: [
+          {
+            model: usulan,
+            attributes: ["id"],
+          },
+        ],
+        group: ["nip"],
+        where: {
+          // "$usulans.status_judul$": { [Op.ne]: ["usulan"] },
+          "$usulans.status_usulan$": "confirmed",
+        },
+      });
+
       const arrDatasUsulan = JSON.parse(JSON.stringify(getDataUsulan));
       const arrDatasDosen = JSON.parse(JSON.stringify(getDatasDosen));
+      const arrMhsBimbingan = JSON.parse(JSON.stringify(getMhsBimbingan));
 
       const arrDatas = [];
 
@@ -236,26 +374,41 @@ router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
         });
       });
 
-      // hapus data penelitian dan ini utk menu keputusan
-      if (status_judul) {
-        arrDatas?.forEach((data) => {
-          delete data["penelitian"];
-          delete data["password"];
-          delete data["usulans"];
-        });
-      }
+      const allArrDatas = [...arrDatas, ...arrMhsBimbingan];
+      const objPerAllArrDatas = {};
+      allArrDatas?.forEach((data) => {
+        if (!objPerAllArrDatas[data?.nip]) {
+          objPerAllArrDatas[data?.nip] = {
+            ...data,
+            n_mhs_bimbingan: 0,
+          };
+        }
+        objPerAllArrDatas[data?.nip]["n_mhs_bimbingan"] =
+          data?.n_mhs_bimbingan ||
+          objPerAllArrDatas[data?.nip]?.n_mhs_bimbingan;
+      });
+
+      // ini smua dosen, biar perhitungan n_mhs_bimbingannya g keliru
+      // smua dosen itu karna data dari arrMhsBimbingan
+      const arrDatasWithMhsBimbingan = Object.values(objPerAllArrDatas);
+
+      const nipUsulan = arrDatas?.map((data) => data?.nip);
+
+      // karna smua dosen, jdi difilter lgi hanya berdasarkan nip yg di usulan seorang mhs
+      const filterArrDsnBimbingan = arrDatasWithMhsBimbingan?.filter((data) =>
+        nipUsulan?.includes(data?.nip)
+      );
 
       res?.status(200)?.send({
         status: 200,
         data: {
-          arrDatas,
-          statusUsulan: arrDatasUsulan?.[0]?.status_usulan,
+          arrDatas: filterArrDsnBimbingan,
+          statusUsulan: objDatasMhs?.usulans?.[0]?.status_usulan,
           mhs_name: objDatasMhs?.name,
-          bidang: arrDatasUsulan?.[0]?.bidang,
-          jdl_from_dosen: arrDatasUsulan?.[0]?.jdl_from_dosen,
-          judul: arrDatasUsulan?.[0]?.judul,
-          is_usul: objDatasMhs?.is_usul,
-          tingkatan: objDatasMhs?.tingkatan,
+          bidang: objDatasMhs?.usulans?.[0]?.bidang,
+          jdl_from_dosen: objDatasMhs?.usulans?.[0]?.jdl_from_dosen,
+          judul: objDatasMhs?.usulans?.[0]?.judul,
+          file_pra_proposal: objDatasMhs?.usulans?.[0]?.file_pra_proposal,
         },
       });
     } else {
@@ -354,7 +507,10 @@ router.post("/getSimilaritasJudul", async (req, res) => {
         });
       });
 
-      res.status(200).send({ status: 200, data: arrWinnowing });
+      res.status(200).send({
+        status: 200,
+        data: sortArrObj({ arr: arrWinnowing, props: "skor" }),
+      });
     } else {
       errResponse({ res, e: "Mohon berikan nilai kGram di setting" });
     }
@@ -373,14 +529,6 @@ router.post(
   async (req, res) => {
     const { no_bp, nip } = req.body;
     try {
-      const arrDatas = nip?.map((dataNip) => {
-        return {
-          ...req?.body,
-          nip: dataNip,
-          id: uuid(),
-        };
-      });
-
       const getDataMhs = await readFn({
         model: mhs,
         where: {
@@ -393,51 +541,27 @@ router.post(
 
       const dataMhs = JSON.parse(JSON.stringify(getDataMhs));
 
-      // cek dulu apakah udh mengusulkan atau blm
-      if (!dataMhs?.is_usul) {
-        usulan.addHook("afterBulkCreate", async (usulan, options) => {
-          // update status is_usul dan status judul mhs
-          updateFn({
-            model: mhs,
-            data: {
-              is_usul: true,
-              status_judul: "usulan",
-            },
-            where: {
-              no_bp,
-            },
-            isTransaction: true,
-            transaction: options.transaction,
-          });
-        });
+      const arrDatas = nip?.map((dataNip) => {
+        return {
+          ...req?.body,
+          nip: dataNip,
+          status_judul: "usulan",
+          id: uuid(),
+          semester: dataMhs?.semester,
+          tahun: dataMhs?.tahun,
+        };
+      });
 
-        await sequelize.transaction(async (transaction) => {
-          // nip?.forEach((dataNip) => {
-          //   createFn({
-          //     model: usulan,
-          //     data: {
-          //       ...req?.body,
-          //       nip: dataNip,
-          //       id: uuid(),
-          //     },
-          //     isTransaction: true,
-          //     transaction,
-          //   });
-          // });
-          await multipleFn({
-            model: usulan,
-            arrDatas,
-            type: "add",
-            isTransaction: true,
-            transaction,
-          });
+      await sequelize.transaction(async (transaction) => {
+        await multipleFn({
+          model: usulan,
+          arrDatas,
+          type: "add",
+          isTransaction: true,
+          transaction,
         });
-        res
-          ?.status(200)
-          ?.send({ status: 200, message: "Sukses nambah usulan" });
-      } else {
-        throw new Error(`Mahasiswa ${dataMhs?.name} sudah mengusulkan`);
-      }
+      });
+      res?.status(200)?.send({ status: 200, message: "Sukses nambah usulan" });
     } catch (e) {
       errResponse({ res, e });
 

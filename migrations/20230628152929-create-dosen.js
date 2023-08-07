@@ -4,11 +4,9 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable("dosens", {
       nip: {
-        allowNull: false,
         primaryKey: true,
+        allowNull: false,
         type: Sequelize.CHAR(36),
-        // autoIncrement: true,
-        // type: Sequelize.INTEGER,
       },
       name: {
         type: Sequelize.STRING,
@@ -36,9 +34,11 @@ module.exports = {
       penelitian: {
         type: Sequelize.TEXT,
       },
+      linkDataPenelitian: {
+        type: Sequelize.STRING,
+      },
       roles: {
         type: Sequelize.INTEGER,
-        defaultValue: 1,
       },
       createdAt: {
         allowNull: false,

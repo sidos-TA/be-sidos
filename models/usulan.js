@@ -30,29 +30,35 @@ module.exports = (sequelize, DataTypes) => {
       nip: DataTypes.CHAR(36),
       judul: DataTypes.TEXT,
       bidang: DataTypes.STRING,
+      semester: {
+        type: DataTypes.ENUM("ganjil", "genap"),
+        defaultValue: {
+          type: DataTypes.ENUM("ganjil", "genap"),
+          defaultValue: "ganjil",
+        },
+      },
+      tahun: DataTypes.STRING,
       jdl_from_dosen: DataTypes.STRING,
       file_pra_proposal: DataTypes.BLOB,
       status_usulan: {
-        type: DataTypes.ENUM(
-          "confirmed",
-          "partially confirmed",
-          "no confirm",
-          "unavailable"
-        ),
+        type: DataTypes.ENUM("confirmed", "no confirm"),
         defaultValue: "no confirmed",
       },
-      // deletedAt: DataTypes.DATE,
+      status_judul: {
+        type: DataTypes.ENUM("terima", "tolak", "revisi", "usulan"),
+      },
+      keterangan: DataTypes.STRING,
+      deletedAt: DataTypes.DATE,
 
       /**
        * - confirm, kalau smua usulan di konfimrasi dosen terkait
-       * - partially acc, kalau hanya 1 dosen terkait yg konfirmasi
-       * - no acc, belum ada dosen yang konfirmasi
+       * - no confirm, belum digubris sama kaprodi
        * */
     },
     {
       sequelize,
       modelName: "usulan",
-      // paranoid: true,
+      paranoid: true,
     }
   );
   return usulan;

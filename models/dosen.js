@@ -12,21 +12,15 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "nip",
       });
 
-      dosen.hasMany(models?.bimbingan, {
-        foreignKey: "nip",
-      });
-
       //   // define association here
     }
   }
   dosen.init(
     {
       nip: {
-        allowNull: false,
         primaryKey: true,
+        allowNull: false,
         type: DataTypes.CHAR(36),
-        // autoIncrement: true,
-        // type: Sequelize.INTEGER,
       },
       name: DataTypes.STRING,
       photo: DataTypes.BLOB("medium"),
@@ -42,9 +36,9 @@ module.exports = (sequelize, DataTypes) => {
       jabatan: DataTypes.STRING,
       pendidikan: DataTypes.STRING,
       penelitian: DataTypes.TEXT,
+      linkDataPenelitian: DataTypes.STRING,
       roles: {
         type: DataTypes.INTEGER,
-        defaultValue: 1,
       },
     },
     {

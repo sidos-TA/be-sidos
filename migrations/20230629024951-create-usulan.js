@@ -8,8 +8,6 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.UUID,
         defaultValue: Sequelize.UUIDV4,
-        // autoIncrement: true,
-        // type: Sequelize.INTEGER,
       },
       no_bp: {
         type: Sequelize.CHAR(36),
@@ -23,6 +21,13 @@ module.exports = {
       bidang: {
         type: Sequelize.STRING,
       },
+      semester: {
+        type: Sequelize.ENUM("ganjil", "genap"),
+        defaultValue: "ganjil",
+      },
+      tahun: {
+        type: Sequelize.STRING,
+      },
       jdl_from_dosen: {
         type: Sequelize.STRING,
       },
@@ -30,13 +35,14 @@ module.exports = {
         type: Sequelize.BLOB,
       },
       status_usulan: {
-        type: Sequelize.ENUM(
-          "confirmed",
-          "partially confirmed",
-          "no confirmed",
-          "unavailable"
-        ),
+        type: Sequelize.ENUM("confirmed", "no confirmed"),
         defaultValue: "no confirmed",
+      },
+      status_judul: {
+        type: Sequelize.ENUM("terima", "tolak", "revisi", "usulan"),
+      },
+      keterangan: {
+        type: Sequelize.STRING,
       },
       createdAt: {
         allowNull: false,
@@ -46,9 +52,9 @@ module.exports = {
         allowNull: false,
         type: Sequelize.DATE,
       },
-      // deletedAt: {
-      //   type: Sequelize.DATE,
-      // },
+      deletedAt: {
+        type: Sequelize.DATE,
+      },
     });
   },
   async down(queryInterface) {

@@ -5,23 +5,21 @@ const readFn = ({
   page = 1,
   usePaginate = true,
   isExcludeId = true,
+  exclude = [],
   ...props
 }) => {
   if (type === "find") {
     return model.findOne({
-      ...props,
       where,
       attributes: {
         ...props?.attributes,
-        ...(isExcludeId && {
-          exclude: ["id"],
-        }),
+        exclude: [...exclude, "createdAt", "updatedAt", isExcludeId && "id"],
       },
+      ...props,
     });
   }
 
   return model.findAll({
-    ...props,
     ...(where && {
       where,
     }),
@@ -31,16 +29,9 @@ const readFn = ({
     }),
     attributes: {
       ...props?.attributes,
-      ...(isExcludeId && {
-        exclude: ["id"],
-      }),
+      exclude: [...exclude, isExcludeId && "id"],
     },
-    // attributes: {
-    //   ...props?.attributes,
-    //   ...(isExcludeId && {
-    //     exclude: ["id"],
-    //   }),
-    // },
+    ...props,
   });
 };
 

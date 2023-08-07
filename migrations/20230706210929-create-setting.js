@@ -11,6 +11,9 @@ module.exports = {
         // autoIncrement: true,
         // type: Sequelize.INTEGER
       },
+      semester: {
+        type: Sequelize.ENUM("ganjil", "genap"),
+      },
       kuota_bimbingan: {
         type: Sequelize.INTEGER,
       },
