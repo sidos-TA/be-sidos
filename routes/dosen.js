@@ -228,6 +228,29 @@ router.post("/scrapeSIPEG", verifyJWT, forbiddenResponse, async (req, res) => {
 });
 
 // -CREATE-
+/**Ini hanya utk pribadi */
+router.post(
+  "/addDataDosen_private",
+  verifyJWT,
+  forbiddenResponse,
+  async (req, res) => {
+    const hashPassword = await encryptPassword(
+      req?.body?.password || "password123"
+    );
+
+    createFn({
+      data: { ...req?.body, password: hashPassword, id: uuid() },
+      model: dosen,
+    })
+      ?.then(() => {
+        res?.status(200).send({ status: 200, message: "Sukses nambah data" });
+      })
+      .catch((e) => {
+        errResponse({ res, e });
+      });
+  }
+);
+
 router.post("/addDataDosen", verifyJWT, forbiddenResponse, async (req, res) => {
   const hashPassword = await encryptPassword(
     req?.body?.password || "password123"
