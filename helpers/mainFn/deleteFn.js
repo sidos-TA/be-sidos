@@ -3,11 +3,17 @@ const deleteFn = ({
   where,
   isTransaction = false,
   transaction,
+  type,
   ...props
 }) => {
+  if (type === "all") {
+    return model.destroyAll();
+  }
   return model.destroy(
     {
-      where,
+      ...(where && {
+        where,
+      }),
       ...props,
     },
     isTransaction && { transaction }

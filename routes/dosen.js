@@ -1,7 +1,4 @@
-const { Op } = require("sequelize");
 const { uuid } = require("uuidv4");
-const yearNow = require("../constants/yearNow");
-const formatResponseSameKey = require("../controller/bimbingan/formatResponseSameKey");
 const scrapeGS = require("../controller/dsn/read/scrapeGS");
 const scrapeSINTA = require("../controller/dsn/read/scrapeSINTA");
 const scrapeSIPEG = require("../controller/dsn/read/scrapeSIPEG");
@@ -15,7 +12,7 @@ const multipleFn = require("../helpers/mainFn/multipleFn");
 const readFn = require("../helpers/mainFn/readFn");
 const updateFn = require("../helpers/mainFn/updateFn");
 const verifyJWT = require("../helpers/verifyJWT");
-const { dosen, usulan, mhs, sequelize, setting } = require("../models");
+const { dosen, usulan, mhs, setting } = require("../models");
 const router = require("./router");
 
 // -READ-
@@ -25,7 +22,7 @@ router.post("/getAllDosen", verifyJWT, async (req, res) => {
     usePaginate = true,
     showRoles = false,
     semester,
-    tahun = yearNow,
+    tahun,
   } = req.body;
   try {
     const getSetting = await readFn({
@@ -49,7 +46,7 @@ router.post("/getAllDosen", verifyJWT, async (req, res) => {
       attributes: ["semester", "tahun"],
       where: {
         semester: semester || arrSetting?.[0]?.semester || "",
-        tahun: tahun || "",
+        tahun: tahun || arrSetting?.[0]?.tahun || "",
       },
     };
 
@@ -125,7 +122,7 @@ router.post(
   verifyJWT,
   forbiddenResponse,
   async (req, res) => {
-    const { nip, semester, tahun = yearNow } = req.body;
+    const { nip, semester, tahun } = req.body;
 
     try {
       const getSetting = await readFn({
@@ -147,7 +144,7 @@ router.post(
               attributes: ["semester", "tahun", "photo", "name", "prodi"],
               where: {
                 semester: semester || arrSetting?.[0]?.semester || "",
-                tahun: tahun || "",
+                tahun: tahun || arrSetting?.[0]?.tahun || "",
               },
             },
             attributes: ["nip", "judul"],

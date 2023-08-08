@@ -10,8 +10,7 @@ router.post(
   verifyJWT,
   forbiddenResponse,
   async (req, res) => {
-    const getFullYear = new Date().getFullYear();
-    const { tahun = getFullYear, semester } = req.body;
+    const { tahun, semester } = req.body;
     try {
       const getDataSettings = await readFn({
         model: setting,
@@ -31,8 +30,8 @@ router.post(
             },
           ],
           where: {
-            tahun,
-            semester: semester || getDataSettings?.[0]?.semester,
+            tahun: tahun || getDataSettings?.[0]?.tahun || "",
+            semester: semester || getDataSettings?.[0]?.semester || "",
           },
           group: ["no_bp"],
         });
@@ -61,7 +60,6 @@ router.post(
         res.status(200).send({
           status: 200,
           data: arrDatasGraphUsulanMhs,
-          getFullYear,
         });
       } else {
         errResponse({
@@ -80,8 +78,7 @@ router.post(
   verifyJWT,
   forbiddenResponse,
   async (req, res) => {
-    const getFullYear = new Date().getFullYear();
-    const { tahun = getFullYear, semester } = req.body;
+    const { tahun, semester } = req.body;
     try {
       const getDataSettings = await readFn({
         model: setting,
@@ -102,8 +99,8 @@ router.post(
           ],
           group: ["no_bp"],
           where: {
-            tahun,
-            semester: semester || getDataSettings?.[0]?.semester,
+            tahun: tahun || getDataSettings?.[0]?.tahun || "",
+            semester: semester || getDataSettings?.[0]?.semester || "",
           },
         });
 

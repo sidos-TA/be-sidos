@@ -14,6 +14,9 @@ module.exports = {
       semester: {
         type: Sequelize.ENUM("ganjil", "genap"),
       },
+      tahun: {
+        type: Sequelize.STRING,
+      },
       kuota_bimbingan: {
         type: Sequelize.INTEGER,
       },

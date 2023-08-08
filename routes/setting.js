@@ -3,12 +3,14 @@ const forbiddenResponse = require("../helpers/forbiddenResponse");
 const updateFn = require("../helpers/mainFn/updateFn");
 const verifyJWT = require("../helpers/verifyJWT");
 const router = require("./router");
-const { setting, dosen } = require("../models");
+const { setting, dosen, tahuns } = require("../models");
 const readFn = require("../helpers/mainFn/readFn");
 const multipleFn = require("../helpers/mainFn/multipleFn");
+const { uuid } = require("uuidv4");
+const deleteFn = require("../helpers/mainFn/deleteFn");
 
 // -READ-
-router.post("/getSetting", verifyJWT, async (req, res) => {
+router.post("/getSetting", async (req, res) => {
   try {
     const getDataSetting = await readFn({
       model: setting,
@@ -26,6 +28,19 @@ router.post("/getSetting", verifyJWT, async (req, res) => {
         e: "Mohon hubungi kaprodi untuk membuat setting terlebih dahulu",
       });
     }
+  } catch (e) {
+    errResponse({ res, e });
+  }
+});
+
+router.post("/getTahun", async (req, res) => {
+  try {
+    const getSettingTahun = await readFn({
+      model: tahuns,
+      attributes: ["tahun"],
+      order: [["tahun", "ASC"]],
+    });
+    res?.status(200).send({ status: 200, data: getSettingTahun });
   } catch (e) {
     errResponse({ res, e });
   }
@@ -52,6 +67,46 @@ router.post(
     }
   }
 );
+
+router.post(
+  "/updateSettingTahun",
+  verifyJWT,
+  forbiddenResponse,
+  async (req, res) => {
+    const { arrDatas } = req.body;
+
+    try {
+      const getDataTahun = await readFn({
+        model: tahuns,
+        isExcludeId: false,
+      });
+      const arrDataTahun = JSON.parse(JSON.stringify(getDataTahun));
+
+      deleteFn({
+        model: tahuns,
+        where: {
+          id: arrDataTahun?.map((data) => data?.id),
+        },
+      })?.then(async () => {
+        await multipleFn({
+          model: tahuns,
+          type: "add",
+          arrDatas: arrDatas?.map((data) => ({
+            ...data,
+            id: uuid(),
+          })),
+        });
+      });
+
+      res
+        .status(200)
+        ?.send({ status: 200, message: "Sukses update data tahun akademik" });
+    } catch (e) {
+      errResponse({ res, e });
+    }
+  }
+);
+
 router.post(
   "/updateKaprodi",
   verifyJWT,

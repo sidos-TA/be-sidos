@@ -1,12 +1,5 @@
 const router = require("./router");
-const {
-  bimbingan,
-  usulan,
-  mhs,
-  dosen,
-  setting,
-  sequelize,
-} = require("../models");
+const { bimbingan, usulan, mhs, dosen, setting } = require("../models");
 const {
   addToTabelJudul,
 } = require("../controller/bimbingan/addBimbingan/addToTabelJudul");
@@ -21,7 +14,6 @@ const {
   deleteDataBimbingan,
 } = require("../controller/bimbingan/deleteBimbingan/deleteDataBimbingan");
 const readFn = require("../helpers/mainFn/readFn");
-const formatResponseSameKey = require("../controller/bimbingan/formatResponseSameKey");
 const deleteFn = require("../helpers/mainFn/deleteFn");
 const errResponse = require("../helpers/errResponse");
 const filterByKey = require("../helpers/filterByKey");
@@ -29,11 +21,10 @@ const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
 const updateSttsJudulMhs = require("../controller/bimbingan/addBimbingan/updateSttsJudulMhs");
 const { Op } = require("sequelize");
-const yearNow = require("../constants/yearNow");
 
 // -READ-
 router.post("/getBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
-  const { semester, tahun = yearNow } = req.body;
+  const { semester, tahun } = req.body;
 
   const arrExcludeMhs = ["password", "roles"];
   const arrExcludeUsulan = [
@@ -88,7 +79,7 @@ router.post("/getBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
               "$usulans.status_judul$": { [Op.ne]: ["usulan"] },
               "$usulans.status_usulan$": "confirmed",
               "$usulans.semester$": semester || getDataSettings?.[0]?.semester,
-              "$usulans.tahun$": tahun || "",
+              "$usulans.tahun$": tahun || getDataSettings?.[0]?.tahun || "",
             },
           },
         ],

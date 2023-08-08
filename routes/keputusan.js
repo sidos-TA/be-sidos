@@ -6,7 +6,6 @@ const deleteFn = require("../helpers/mainFn/deleteFn");
 const readFn = require("../helpers/mainFn/readFn");
 const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
-const yearNow = require("../constants/yearNow");
 
 router.post("/addKeputusan", verifyJWT, forbiddenResponse, async (req, res) => {
   const { no_bp, nip } = req.body;
@@ -57,13 +56,7 @@ router.post("/addKeputusan", verifyJWT, forbiddenResponse, async (req, res) => {
 
 // -READ-
 router.post("/getKeputusan", verifyJWT, async (req, res) => {
-  const {
-    status_judul,
-    status_usulan,
-    semester,
-    tahun = yearNow,
-    no_bp,
-  } = req.body;
+  const { status_judul, status_usulan, semester, tahun, no_bp } = req.body;
 
   const arrExcludeUsulan = ["createdAt", "updatedAt", "nip", "no_bp", "id"];
   const arrExcludeDosen = [
@@ -95,7 +88,7 @@ router.post("/getKeputusan", verifyJWT, async (req, res) => {
               no_bp,
             }),
             "$usulans.semester$": semester || getSetting?.[0]?.semester || "",
-            "$usulans.tahun$": tahun || "",
+            "$usulans.tahun$": tahun || getSetting?.[0]?.tahun || "",
           },
           include: [
             {

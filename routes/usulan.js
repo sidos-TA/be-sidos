@@ -14,10 +14,7 @@ const arrPendidikanValue = require("../constants/pendidikanValue");
 const { EDAS_Winnowing } = require("../spk_module/EDAS_Winnowing");
 const multipleFn = require("../helpers/mainFn/multipleFn");
 const deleteFn = require("../helpers/mainFn/deleteFn");
-const kalkulasiMhsValue = require("../helpers/kalkulasiMhsValue");
 const { uuid } = require("uuidv4");
-const updateFn = require("../helpers/mainFn/updateFn");
-const formatResponseSameKey = require("../controller/bimbingan/formatResponseSameKey");
 const errResponse = require("../helpers/errResponse");
 const filterByKey = require("../helpers/filterByKey");
 const verifyJWT = require("../helpers/verifyJWT");
@@ -27,19 +24,10 @@ const isStringParseArr = require("../helpers/isStringParseArr");
 const { jaccardSimilarityHandler } = require("../spk_module/Winnowing");
 const { uniqueArrObj } = require("../helpers/uniqueArr_ArrObj");
 const sortArrObj = require("../helpers/sortArrObj");
-const yearNow = require("../constants/yearNow");
-const { where, Op } = require("sequelize");
 
 // -READ-
 router?.post("/getSPK", async (req, res) => {
-  const {
-    page,
-    judul,
-    bidang,
-    jdl_from_dosen,
-    semester,
-    tahun = yearNow,
-  } = req.body;
+  const { page, judul, bidang, jdl_from_dosen, semester, tahun } = req.body;
   try {
     const getSetting = await readFn({
       model: setting,
@@ -76,7 +64,7 @@ router?.post("/getSPK", async (req, res) => {
       attributes: ["nip", "status_judul", "status_usulan"],
       where: {
         semester: semester || arrSetting?.[0]?.semester || "",
-        tahun: tahun || "",
+        tahun: tahun || arrSetting?.[0]?.tahun || "",
       },
     });
     const getUsulanMhsBimbing = await readFn({
@@ -85,7 +73,7 @@ router?.post("/getSPK", async (req, res) => {
       where: {
         status_usulan: "confirmed",
         semester: semester || arrSetting?.[0]?.semester || "",
-        tahun: tahun || "",
+        tahun: tahun || arrSetting?.[0]?.tahun || "",
       },
     });
 
@@ -174,6 +162,8 @@ router?.post("/getSPK", async (req, res) => {
       res.status(200).send({
         status: 200,
         data: dataDosenBySPK,
+        getUsulanMhsUsul,
+        getUsulanMhsBimbing,
       });
     } else {
       errResponse({ res, e: "Data kategori masih kosong" });
@@ -184,7 +174,7 @@ router?.post("/getSPK", async (req, res) => {
 });
 
 router.post("/getUsulan", verifyJWT, async (req, res) => {
-  const { no_bp, status_judul, semester, tahun = yearNow } = req.body;
+  const { no_bp, status_judul, semester, tahun } = req.body;
   try {
     const objSearch = filterByKey({ req });
 
@@ -232,8 +222,8 @@ router.post("/getUsulan", verifyJWT, async (req, res) => {
 
         where: {
           ...objSearch,
-          semester: semester || getDataSettings?.[0]?.semester,
-          tahun,
+          semester: semester || getDataSettings?.[0]?.semester || "",
+          tahun: tahun || getDataSettings?.[0]?.tahun || "",
         },
         group: ["no_bp"],
       });

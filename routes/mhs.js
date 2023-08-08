@@ -1,4 +1,3 @@
-const yearNow = require("../constants/yearNow");
 const encryptPassword = require("../helpers/encryptPassword");
 const errResponse = require("../helpers/errResponse");
 const filterByKey = require("../helpers/filterByKey");
@@ -14,7 +13,7 @@ const router = require("./router");
 
 // -GET-
 router.post("/getAllMhs", verifyJWT, forbiddenResponse, async (req, res) => {
-  const { page, semester, tahun = yearNow } = req.body;
+  const { page, semester, tahun } = req.body;
 
   try {
     const getDataSettings = await readFn({
@@ -28,8 +27,8 @@ router.post("/getAllMhs", verifyJWT, forbiddenResponse, async (req, res) => {
       type: "all",
       page,
       where: {
-        tahun,
-        semester: semester || getDataSettings?.[0]?.semester,
+        tahun: tahun || getDataSettings?.[0]?.tahun || "",
+        semester: semester || getDataSettings?.[0]?.semester || "",
         ...objSearch,
       },
       ...(Object.keys(objSearch)?.length && {
@@ -51,7 +50,7 @@ router.post("/getAllMhs", verifyJWT, forbiddenResponse, async (req, res) => {
   }
 });
 router.post("/getMhsByNoBp", verifyJWT, async (req, res) => {
-  const { no_bp, semester, tahun = yearNow } = req.body;
+  const { no_bp, semester, tahun } = req.body;
   try {
     const getDatasMhs = await readFn({
       model: mhs,
@@ -79,6 +78,7 @@ router.post("/getMhsByNoBp", verifyJWT, async (req, res) => {
           "status_usulan",
           "semester",
           "tahun",
+          "judul",
         ],
         include: [
           {
