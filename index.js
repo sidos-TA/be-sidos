@@ -14,6 +14,7 @@ const { loginRoute } = require("./routes/login");
 const { forbidMethodsRoute } = require("./routes/forbiddenmethods");
 const { settingRoute } = require("./routes/setting");
 const { keputusanRoute } = require("./routes/keputusan");
+const { tesRoute } = require("./routes/tes");
 
 const app = express();
 
@@ -39,5 +40,6 @@ app.use(loginRoute);
 app.use(forbidMethodsRoute);
 app.use(settingRoute);
 app.use(keputusanRoute);
+app.use(tesRoute);
 
 app.listen(3000);
