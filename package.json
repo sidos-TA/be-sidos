@@ -8,6 +8,7 @@
     "migrate": "npx sequelize-cli db:migrate",
     "createdb": "npx sequelize-cli db:create",
     "createdb_migrate": "npx sequelize-cli db:create && npx sequelize-cli db:migrate",
+    "createdb_migrate_prod": "npx sequelize-cli db:create --env production && npx sequelize-cli db:migrate --env production",
     "migrate:undo:all": "npx sequelize-cli db:migrate:undo:all",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
