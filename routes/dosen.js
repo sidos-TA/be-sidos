@@ -1,4 +1,4 @@
-const formatResponseSameKey = require("../controller/bimbingan/formatResponseSameKey");
+const { uuid } = require("uuidv4");
 const scrapeGS = require("../controller/dsn/read/scrapeGS");
 const scrapeSINTA = require("../controller/dsn/read/scrapeSINTA");
 const scrapeSIPEG = require("../controller/dsn/read/scrapeSIPEG");
@@ -12,29 +12,106 @@ const multipleFn = require("../helpers/mainFn/multipleFn");
 const readFn = require("../helpers/mainFn/readFn");
 const updateFn = require("../helpers/mainFn/updateFn");
 const verifyJWT = require("../helpers/verifyJWT");
-const { dosen, bimbingan, mhs, usulan } = require("../models");
+const { dosen, usulan, mhs, setting } = require("../models");
 const router = require("./router");
 
 // -READ-
 router.post("/getAllDosen", verifyJWT, async (req, res) => {
-  const { page } = req.body;
+  const {
+    page,
+    usePaginate = true,
+    showRoles = false,
+    semester,
+    tahun,
+  } = req.body;
   try {
+    const getSetting = await readFn({
+      model: setting,
+    });
+    const arrSetting = JSON.parse(JSON.stringify(getSetting));
+
     const objSearch = filterByKey({ req });
+
+    delete objSearch["usePaginate"];
+    delete objSearch["showRoles"];
+    delete objSearch["semester"];
+    delete objSearch["tahun"];
+
+    const showRolesAttr = showRoles
+      ? ["name", "nip", "sks", "jabatan", "pendidikan", "roles"]
+      : ["name", "nip", "sks", "jabatan", "pendidikan"];
+
+    const mhsObjModel = {
+      model: mhs,
+      attributes: ["semester", "tahun"],
+      where: {
+        semester: semester || arrSetting?.[0]?.semester || "",
+        tahun: tahun || arrSetting?.[0]?.tahun || "",
+      },
+    };
+
     const getDatas = await readFn({
       model: dosen,
       type: "all",
       page,
+      usePaginate,
       where: objSearch,
       ...(Object.keys(objSearch)?.length && {
         usePaginate: false,
       }),
-
-      include: [usulan, bimbingan],
+      attributes: showRolesAttr,
+    });
+    const getUsulanMhsUsul = await readFn({
+      model: usulan,
+      attributes: ["nip", "status_judul", "status_usulan"],
+      include: mhsObjModel,
+    });
+    const getUsulanMhsBimbing = await readFn({
+      model: usulan,
+      attributes: ["nip", "status_judul", "status_usulan"],
+      include: mhsObjModel,
+      where: {
+        status_usulan: "confirmed",
+      },
     });
 
-    const arrDatasDosen = JSON.parse(JSON.stringify(getDatas));
+    const arrDatas = JSON.parse(JSON.stringify(getDatas));
+    const arrUsulanMhsUsul = JSON.parse(JSON.stringify(getUsulanMhsUsul));
+    const arrUsulanMhsBimbing = JSON.parse(JSON.stringify(getUsulanMhsBimbing));
 
-    res.status(200).send({ status: 200, data: arrDatasDosen });
+    const allData = [...arrDatas, ...arrUsulanMhsUsul, ...arrUsulanMhsBimbing];
+
+    const result = Object.values(
+      allData.reduce((init, curr) => {
+        if (!init[curr.nip]) {
+          init[curr.nip] = {
+            ...curr,
+            nip: curr.nip,
+            n_mhs_bimbingan: 0,
+            n_mhs_usulan: 0,
+          };
+        }
+
+        if (arrUsulanMhsBimbing.some((mhs) => mhs.nip === curr.nip)) {
+          init[curr.nip].n_mhs_bimbingan = arrUsulanMhsBimbing.filter(
+            (mhs) => mhs.nip === curr.nip
+          ).length;
+        }
+
+        if (arrUsulanMhsUsul.some((mhs) => mhs.nip === curr.nip)) {
+          init[curr.nip].n_mhs_usulan = arrUsulanMhsUsul.filter(
+            (mhs) => mhs.nip === curr.nip
+          ).length;
+        }
+
+        return init;
+      }, {})
+    );
+
+    res.status(200).send({
+      status: 200,
+      data: result,
+    });
   } catch (e) {
     errResponse({ res, e });
   }
@@ -45,36 +122,43 @@ router.post(
   verifyJWT,
   forbiddenResponse,
   async (req, res) => {
-    const { nip } = req.body;
+    const { nip, semester, tahun } = req.body;
 
     try {
+      const getSetting = await readFn({
+        model: setting,
+      });
+      const arrSetting = JSON.parse(JSON.stringify(getSetting));
       const getDatasDosen = await readFn({
         model: dosen,
         type: "find",
         where: {
           nip,
         },
+        exclude: ["password", "roles"],
+        include: [
+          {
+            model: usulan,
+            include: {
+              model: mhs,
+              attributes: ["semester", "tahun", "photo", "name", "prodi"],
+              where: {
+                semester: semester || arrSetting?.[0]?.semester || "",
+                tahun: tahun || arrSetting?.[0]?.tahun || "",
+              },
+            },
+            attributes: ["nip", "judul"],
+          },
+        ],
       });
-      const getDatasBimbingan = await readFn({
-        model: bimbingan,
-        type: "all",
-        where: {
-          nip,
-        },
-        include: [mhs],
-      });
+
       const objDatasDosen = JSON.parse(JSON.stringify(getDatasDosen));
-      const arrDatasBimbingan = JSON.parse(JSON.stringify(getDatasBimbingan));
 
-      const [dataMhsBimbingan] = formatResponseSameKey({
-        arrDatas: arrDatasBimbingan,
-        propsKey: "nip",
-        propsMergeToArray: "mh",
-      });
-
-      const dataDosen = { ...objDatasDosen, ...dataMhsBimbingan };
-
-      res.status(200).send({ status: 200, data: dataDosen });
+      if (Object.keys(objDatasDosen || {})?.length) {
+        res.status(200).send({ status: 200, data: objDatasDosen });
+      } else {
+        errResponse({ res, e: "Data dosen tidak tersedia", status: 404 });
+      }
     } catch (e) {
       errResponse({ res, e });
     }
@@ -82,37 +166,31 @@ router.post(
 );
 
 router.post("/scrapeSINTA", async (req, res) => {
-  const { sinta_id } = req.body;
+  const { sinta_url } = req.body;
 
   try {
-    const dataScopus = await scrapeSINTA(sinta_id, "scopus");
-    const dataWOS = await scrapeSINTA(sinta_id, "wos");
-    const dataGaruda = await scrapeSINTA(sinta_id, "garuda");
-    const dataGS = await scrapeSINTA(sinta_id, "googlescholar");
-    const dataRAMA = await scrapeSINTA(sinta_id, "rama");
+    const dataGSSINTA = await scrapeSINTA(sinta_url);
 
-    const data = [dataScopus, dataWOS, dataGaruda, dataGS, dataRAMA];
-    // const redData = data?.reduce((init, curr) => {
-    //   init = [...curr.dataPenelitian];
-    //   return init;
-    // }, []);
+    const resultData = {
+      penelitian: dataGSSINTA?.dataPenelitian,
+      bidang: dataGSSINTA?.bidang,
+    };
 
-    res.status(200).send({ status: 200, data });
+    res.status(200).send({ status: 200, data: resultData });
   } catch (e) {
     errResponse({ res, e });
   }
 });
 
 router.post("/scrapeGS", verifyJWT, forbiddenResponse, async (req, res) => {
-  const { gs_url } = req.body;
+  const { link } = req.body;
 
   try {
     if (
-      (gs_url &&
-        gs_url?.includes("https://scholar.google.co.id/citations?user")) ||
-      gs_url?.includes("https://scholar.google.com/citations?user")
+      (link && link?.includes("https://scholar.google.co.id/citations?user")) ||
+      link?.includes("https://scholar.google.com/citations?user")
     ) {
-      const { dataPenelitian, bidang } = await scrapeGS(gs_url);
+      const { dataPenelitian, bidang } = await scrapeGS(link);
       const resultData = {
         penelitian: dataPenelitian,
         bidang,
@@ -155,7 +233,10 @@ router.post("/addDataDosen", verifyJWT, forbiddenResponse, async (req, res) => {
     req?.body?.password || "password123"
   );
 
-  createFn({ data: { ...req?.body, password: hashPassword }, model: dosen })
+  createFn({
+    data: { ...req?.body, password: hashPassword, id: uuid() },
+    model: dosen,
+  })
     ?.then(() => {
       res?.status(200).send({ status: 200, message: "Sukses nambah data" });
     })

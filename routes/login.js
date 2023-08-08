@@ -1,13 +1,12 @@
 const router = require("./router");
 const { mhs, dosen } = require("../models");
 const readFn = require("../helpers/mainFn/readFn");
-const { Op } = require("sequelize");
 const comparedPassword = require("../helpers/comparedPassword");
 const jwt = require("jsonwebtoken");
 const errResponse = require("../helpers/errResponse");
 const updateFn = require("../helpers/mainFn/updateFn");
 const verifyJWT = require("../helpers/verifyJWT");
-const bcrypt = require("bcrypt");
+const { Op } = require("sequelize");
 
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
@@ -22,6 +21,9 @@ router.post("/login", async (req, res) => {
         usePaginate: false,
         where: {
           no_bp: username,
+          roles: {
+            [Op.ne]: null,
+          },
         },
       });
       const getDataDosen = await readFn({
@@ -30,6 +32,9 @@ router.post("/login", async (req, res) => {
         usePaginate: false,
         where: {
           nip: username,
+          roles: {
+            [Op.ne]: null,
+          },
         },
       });
 
@@ -49,7 +54,7 @@ router.post("/login", async (req, res) => {
               }),
             },
             process.env.JWT_SECRET_KEYS,
-            { expiresIn: process.env.JWT_EXPIRES_IN },
+            { expiresIn: Number(process.env.JWT_EXPIRES_IN) },
             // { expiresIn: 3600 },
             { algorithm: "RS256" }
           );

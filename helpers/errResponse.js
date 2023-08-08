@@ -1,6 +1,6 @@
-const errResponse = ({ res, e }) => {
-  return res?.status(400)?.send({
-    status: 400,
+const errResponse = ({ res, e, status = 400 }) => {
+  return res?.status(status)?.send({
+    status,
     error: Object?.keys(e)?.length ? e : e?.message,
   });
 };

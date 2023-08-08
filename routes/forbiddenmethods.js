@@ -1,6 +1,6 @@
 const readFn = require("../helpers/mainFn/readFn");
 const router = require("./router");
-const { forbiddenMethod } = require("../models");
+const { forbiddenMethod, setting } = require("../models");
 const errResponse = require("../helpers/errResponse");
 const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
@@ -9,14 +9,19 @@ const { uuid } = require("uuidv4");
 const updateFn = require("../helpers/mainFn/updateFn");
 const deleteFn = require("../helpers/mainFn/deleteFn");
 const multipleFn = require("../helpers/mainFn/multipleFn");
+const filterByKey = require("../helpers/filterByKey");
 
 // -READ-
 router.post("/getforbidmethods", async (req, res) => {
   try {
+    const objSearch = filterByKey({ req });
     const getDataForbidMethods = await readFn({
       model: forbiddenMethod,
       type: "all",
       isExcludeId: false,
+      where: {
+        ...objSearch,
+      },
     });
     res.status(200)?.send({ status: 200, data: getDataForbidMethods });
   } catch (e) {
@@ -42,21 +47,34 @@ router.post("/getforbidmethodsById", async (req, res) => {
 });
 
 // -CREATE
-router.post("/addforbidmethods", verifyJWT, forbiddenResponse, (req, res) => {
-  createFn({
-    model: forbiddenMethod,
-    data: { ...req?.body, id: uuid() },
-  })
-    ?.then(() => {
-      res?.status(200)?.send({
-        status: 200,
-        message: "Sukses nambah method yang tidak dianjurkan",
-      });
-    })
-    ?.catch((e) => {
-      errResponse({ res, e });
+router.post(
+  "/addforbidmethods",
+  verifyJWT,
+  forbiddenResponse,
+  async (req, res) => {
+    const getSettings = await readFn({
+      model: setting,
     });
-});
+
+    createFn({
+      model: forbiddenMethod,
+      data: {
+        ...req?.body,
+        id: uuid(),
+        semester: getSettings?.[0]?.semester || "ganjil",
+      },
+    })
+      ?.then(() => {
+        res?.status(200)?.send({
+          status: 200,
+          message: "Sukses nambah method yang tidak dianjurkan",
+        });
+      })
+      ?.catch((e) => {
+        errResponse({ res, e });
+      });
+  }
+);
 
 router.post(
   "/addMultipleDataForbidMethods",
@@ -65,9 +83,16 @@ router.post(
   async (req, res) => {
     const { arrDatas } = req.body;
     try {
+      const getSettings = await readFn({
+        model: setting,
+      });
       await multipleFn({
         model: forbiddenMethod,
-        arrDatas: arrDatas?.map((data) => ({ ...data, id: uuid() })),
+        arrDatas: arrDatas?.map((data) => ({
+          ...data,
+          id: uuid(),
+          semester: getSettings?.[0]?.semester || "ganjil",
+        })),
         type: "add",
       });
       res.status(200).send({

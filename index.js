@@ -13,6 +13,7 @@ const { judulDataRoute } = require("./routes/judulData");
 const { loginRoute } = require("./routes/login");
 const { forbidMethodsRoute } = require("./routes/forbiddenmethods");
 const { settingRoute } = require("./routes/setting");
+const { keputusanRoute } = require("./routes/keputusan");
 
 const app = express();
 
@@ -37,5 +38,6 @@ app.use(judulDataRoute);
 app.use(loginRoute);
 app.use(forbidMethodsRoute);
 app.use(settingRoute);
+app.use(keputusanRoute);
 
 app.listen(3000);

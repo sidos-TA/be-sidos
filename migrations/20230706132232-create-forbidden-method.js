@@ -20,6 +20,13 @@ module.exports = {
       tingkatan: {
         type: Sequelize.STRING,
       },
+      semester: {
+        type: Sequelize.ENUM("ganjil", "genap"),
+        defaultValue: "ganjil",
+      },
+      tahun: {
+        type: Sequelize.STRING,
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE,

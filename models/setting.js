@@ -19,6 +19,12 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes?.UUID,
         defaultValue: DataTypes.UUIDV4,
       },
+      semester: {
+        type: DataTypes.ENUM("ganjil", "genap"),
+      },
+      tahun: {
+        type: DataTypes.STRING,
+      },
       kuota_bimbingan: DataTypes.INTEGER,
       kGram: DataTypes.INTEGER,
       maksimal_usulan: DataTypes.INTEGER,

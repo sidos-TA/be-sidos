@@ -4,10 +4,8 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable("mhs", {
       no_bp: {
-        allowNull: false,
         primaryKey: true,
-        // autoIncrement: true,
-        // type: Sequelize.INTEGER,
+        allowNull: false,
         type: Sequelize.CHAR(36),
       },
       name: {
@@ -20,22 +18,17 @@ module.exports = {
         type: Sequelize.TEXT,
         defaultValue: "password123",
       },
-      judul_acc: {
-        type: Sequelize.TEXT,
-      },
+
       prodi: {
         type: Sequelize.STRING,
       },
-      tingkatan: {
+
+      semester: {
+        type: Sequelize.ENUM("ganjil", "genap"),
+        defaultValue: "ganjil",
+      },
+      tahun: {
         type: Sequelize.STRING,
-      },
-      is_usul: {
-        type: Sequelize.BOOLEAN,
-        defaultValue: false,
-      },
-      status_judul: {
-        type: Sequelize.ENUM("terima", "tolak", "usulan", "belum mengajukan"),
-        defaultValue: "belum mengajukan",
       },
       roles: {
         type: Sequelize.INTEGER,

@@ -1,6 +1,5 @@
 "use strict";
 const { Model } = require("sequelize");
-const bcrypt = require("bcrypt");
 module.exports = (sequelize, DataTypes) => {
   class mhs extends Model {
     /**
@@ -10,9 +9,7 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // // define association here
-      mhs.hasMany(models?.bimbingan, {
-        foreignKey: "no_bp",
-      });
+
       mhs.hasMany(models?.usulan, {
         foreignKey: "no_bp",
       });
@@ -22,8 +19,8 @@ module.exports = (sequelize, DataTypes) => {
   mhs.init(
     {
       no_bp: {
-        allowNull: false,
         primaryKey: true,
+        allowNull: false,
         type: DataTypes.CHAR(36),
       },
       name: DataTypes.STRING,
@@ -35,17 +32,15 @@ module.exports = (sequelize, DataTypes) => {
           defaultValue: "password123",
         },
       },
-      judul_acc: DataTypes.TEXT,
       prodi: DataTypes.STRING,
-      tingkatan: DataTypes.STRING,
-      is_usul: { type: DataTypes.BOOLEAN, defaultValue: false },
-      status_judul: {
-        type: DataTypes.ENUM("terima", "tolak", "usulan", "belum mengajukan"),
+      semester: {
+        type: DataTypes.ENUM("ganjil", "genap"),
         defaultValue: {
-          type: DataTypes.ENUM("terima", "tolak", "usulan", "belum mengajukan"),
-          defaultValue: "belum mengajukan",
+          type: DataTypes.ENUM("ganjil", "genap"),
+          defaultValue: "ganjil",
         },
       },
+      tahun: DataTypes.STRING,
       roles: {
         type: DataTypes.INTEGER,
         defaultValue: 2,
@@ -54,6 +49,7 @@ module.exports = (sequelize, DataTypes) => {
     {
       sequelize,
       modelName: "mhs",
+      timestamps: false,
     }
   );
   // mhs.beforeCreate(async (mhs) => {

@@ -1,8 +1,7 @@
 const readFn = require("../helpers/mainFn/readFn");
 const router = require("./router");
-const { mhs } = require("../models");
+const { mhs, usulan, setting } = require("../models");
 const errResponse = require("../helpers/errResponse");
-const randomColors = require("../helpers/randomColors");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
 const verifyJWT = require("../helpers/verifyJWT");
 
@@ -11,35 +10,63 @@ router.post(
   verifyJWT,
   forbiddenResponse,
   async (req, res) => {
+    const { tahun, semester } = req.body;
     try {
-      const getDatasMhs = await readFn({
-        model: mhs,
+      const getDataSettings = await readFn({
+        model: setting,
         type: "all",
-        usePaginate: false,
       });
-      const arrDatasMhs = JSON.parse(JSON.stringify(getDatasMhs));
 
-      const filteredDatasMhs = (statusUsul) => {
-        return arrDatasMhs?.filter((data) => data?.is_usul === statusUsul);
-      };
+      if (getDataSettings?.length) {
+        const getDatasMhs = await readFn({
+          model: mhs,
+          type: "all",
+          usePaginate: false,
+          attributes: ["name", "no_bp", "semester", "tahun"],
+          include: [
+            {
+              model: usulan,
+              attributes: ["judul"],
+            },
+          ],
+          where: {
+            tahun: tahun || getDataSettings?.[0]?.tahun || "",
+            semester: semester || getDataSettings?.[0]?.semester || "",
+          },
+          group: ["no_bp"],
+        });
+        const arrDatasMhs = JSON.parse(JSON.stringify(getDatasMhs));
 
-      const arrDatasGraphUsulanMhs = [
-        {
-          title: "Telah mengusulkan",
-          value: filteredDatasMhs(true)?.length,
-          color: "green",
-        },
-        {
-          title: "Belum mengusulkan",
-          value: filteredDatasMhs(false)?.length,
-          color: "grey",
-        },
-      ];
+        const filteredDatasMhs = (isAda) => {
+          if (isAda) {
+            return arrDatasMhs?.filter((data) => data?.usulans?.length)?.length;
+          }
+          return arrDatasMhs?.filter((data) => !data?.usulans?.length)?.length;
+        };
 
-      res.status(200).send({
-        status: 200,
-        data: arrDatasGraphUsulanMhs,
-      });
+        const arrDatasGraphUsulanMhs = [
+          {
+            title: "Telah mengusulkan",
+            value: filteredDatasMhs(true),
+            color: "green",
+          },
+          {
+            title: "Belum mengusulkan",
+            value: filteredDatasMhs(false),
+            color: "grey",
+          },
+        ];
+
+        res.status(200).send({
+          status: 200,
+          data: arrDatasGraphUsulanMhs,
+        });
+      } else {
+        errResponse({
+          res,
+          e: "Mohon hubungi kaprodi untuk membuat setting terlebih dahulu",
+        });
+      }
     } catch (e) {
       errResponse({ res, e });
     }
@@ -51,50 +78,80 @@ router.post(
   verifyJWT,
   forbiddenResponse,
   async (req, res) => {
+    const { tahun, semester } = req.body;
     try {
-      const getDatasMhs = await readFn({
-        model: mhs,
+      const getDataSettings = await readFn({
+        model: setting,
         type: "all",
-        usePaginate: false,
-        // where: {
-        //   is_usul: true,
-        // },
       });
-      const arrDatasMhs = JSON.parse(JSON.stringify(getDatasMhs));
-      const filteredDatasMhs = (statusJudul) => {
-        return arrDatasMhs?.filter(
-          (data) => data?.status_judul === statusJudul
-        );
-      };
 
-      const arrDatasGraphStatusJudul = [
-        {
-          title: "Terima",
-          value: filteredDatasMhs("terima")?.length,
-          color: "green",
-        },
-        {
-          title: "Tolak",
-          value: filteredDatasMhs("tolak")?.length,
-          color: "red",
-        },
-        {
-          title: "Usulan",
-          value: filteredDatasMhs("usulan")?.length,
-          color: "yellow",
-        },
-        {
-          title: "Belum mengajukan",
-          value: filteredDatasMhs("belum mengajukan")?.length,
-          color: "grey",
-        },
-      ];
+      if (getDataSettings?.length) {
+        const getDatasMhs = await readFn({
+          model: mhs,
+          type: "all",
+          usePaginate: false,
+          attributes: ["name"],
+          include: [
+            {
+              model: usulan,
+              attributes: ["status_judul"],
+            },
+          ],
+          group: ["no_bp"],
+          where: {
+            tahun: tahun || getDataSettings?.[0]?.tahun || "",
+            semester: semester || getDataSettings?.[0]?.semester || "",
+          },
+        });
 
-      res.status(200).send({
-        status: 200,
-        data: arrDatasGraphStatusJudul,
-        arrDatasMhs,
-      });
+        const arrDatasMhs = JSON.parse(JSON.stringify(getDatasMhs));
+
+        const lengthStatusJudul = (statusJudul) => {
+          const statusJudulValLength = arrDatasMhs?.filter(
+            (mhs) => mhs?.usulans[0]?.status_judul === statusJudul
+          ).length;
+
+          return statusJudulValLength;
+        };
+
+        const arrDatasGraphStatusJudul = [
+          {
+            title: "Terima",
+            value: lengthStatusJudul("terima"),
+            color: "green",
+          },
+          {
+            title: "Tolak",
+            value: lengthStatusJudul("tolak"),
+            color: "red",
+          },
+          {
+            title: "Usulan",
+            value: lengthStatusJudul("usulan"),
+            color: "yellow",
+          },
+          {
+            title: "Revisi",
+            value: lengthStatusJudul("revisi"),
+            color: "grey",
+          },
+          {
+            title: "Belum mengajukan",
+            value: lengthStatusJudul(),
+            color: "red",
+          },
+        ];
+
+        res.status(200).send({
+          status: 200,
+          data: arrDatasGraphStatusJudul,
+        });
+      } else {
+        errResponse({
+          res,
+          e: "Mohon hubungi kaprodi untuk membuat setting terlebih dahulu",
+        });
+      }
     } catch (e) {
       errResponse({ res, e });
     }

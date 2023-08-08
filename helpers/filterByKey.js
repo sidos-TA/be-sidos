@@ -9,7 +9,8 @@ const filterByKey = ({ req }) => {
       [Op?.like]:
         typeof req?.body?.[key] === "boolean"
           ? req?.body?.[key]
-          : `%${req?.body?.[key]?.split()}%`,
+          : // : `%${req?.body?.[key]?.split()}%`,
+            `%${req?.body?.[key]}%`,
     };
   });
   return objSearch;

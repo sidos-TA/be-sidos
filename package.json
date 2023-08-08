@@ -7,6 +7,7 @@
     "start": "nodemon index.js",
     "migrate": "npx sequelize-cli db:migrate",
     "createdb": "npx sequelize-cli db:create",
+    "createdb_migrate": "npx sequelize-cli db:create && npx sequelize-cli db:migrate",
     "migrate:undo:all": "npx sequelize-cli db:migrate:undo:all",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

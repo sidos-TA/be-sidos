@@ -16,6 +16,16 @@ module.exports = (sequelize, DataTypes) => {
       methodName: DataTypes.STRING,
       bidang: DataTypes.STRING,
       tingkatan: DataTypes.STRING,
+      semester: {
+        type: DataTypes.ENUM("ganjil", "genap"),
+        defaultValue: {
+          type: DataTypes.ENUM("ganjil", "genap"),
+          defaultValue: "ganjil",
+        },
+      },
+      tahun: {
+        type: DataTypes.STRING,
+      },
     },
     {
       sequelize,

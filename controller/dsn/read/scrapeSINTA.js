@@ -2,10 +2,8 @@ const { JSDOM } = require("jsdom");
 const sameArrObj = require("../../../helpers/sameArrObj");
 const scrapePages = require("../../scrapePages");
 
-const scrapeSINTA = async (sinta_id, viewType) => {
-  const pages = await scrapePages(
-    `https://sinta.kemdikbud.go.id/authors/profile/${sinta_id}/?view=${viewType}`
-  );
+const scrapeSINTA = async (sinta_url) => {
+  const pages = await scrapePages(sinta_url);
 
   const dom = new JSDOM(pages).window.document;
 
@@ -20,7 +18,7 @@ const scrapeSINTA = async (sinta_id, viewType) => {
   });
 
   dom.querySelectorAll(".subject-list").forEach((data) => {
-    arrBidang.push(data?.textContent);
+    arrBidang.push(data?.textContent?.trim());
   });
 
   return {
