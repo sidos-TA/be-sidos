@@ -8,6 +8,26 @@ const readFn = require("../helpers/mainFn/readFn");
 const multipleFn = require("../helpers/mainFn/multipleFn");
 const { uuid } = require("uuidv4");
 const deleteFn = require("../helpers/mainFn/deleteFn");
+const createFn = require("../helpers/mainFn/createFn");
+
+// -CREATE-
+router.post("/addSetting_private", async (req, res) => {
+  try {
+    await createFn({
+      model: setting,
+      data: {
+        semester: "genap",
+        tahun: "2022/2023",
+        kuota_bimbingan: 3,
+        kGram: 3,
+        maksimal_usulan: 3,
+      },
+    });
+    res.status(200).send({ status: 200, message: "sukses create settings" });
+  } catch (e) {
+    errResponse({ res, e });
+  }
+});
 
 // -READ-
 router.post("/getSetting", async (req, res) => {
