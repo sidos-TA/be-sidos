@@ -49,7 +49,6 @@ module.exports = (sequelize, DataTypes) => {
     {
       sequelize,
       modelName: "mhs",
-      timestamps: false,
     }
   );
   // mhs.beforeCreate(async (mhs) => {
