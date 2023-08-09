@@ -166,10 +166,10 @@ router.post(
 );
 
 router.post("/scrapeSINTA", async (req, res) => {
-  const { sinta_url } = req.body;
+  const { link } = req.body;
 
   try {
-    const dataGSSINTA = await scrapeSINTA(sinta_url);
+    const dataGSSINTA = await scrapeSINTA(link);
 
     const resultData = {
       penelitian: dataGSSINTA?.dataPenelitian,

@@ -2,8 +2,8 @@ const { JSDOM } = require("jsdom");
 const sameArrObj = require("../../../helpers/sameArrObj");
 const scrapePages = require("../../scrapePages");
 
-const scrapeSINTA = async (sinta_url) => {
-  const pages = await scrapePages(sinta_url);
+const scrapeSINTA = async (link) => {
+  const pages = await scrapePages(link);
 
   const dom = new JSDOM(pages).window.document;
 
