@@ -9,6 +9,10 @@ module.exports = {
         type: Sequelize.UUID,
         defaultValue: Sequelize.UUIDV4,
       },
+      id_usulan: {
+        allowNull: false,
+        type: Sequelize.TEXT,
+      },
       no_bp: {
         type: Sequelize.CHAR(36),
       },

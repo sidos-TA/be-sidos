@@ -15,12 +15,13 @@ const { forbidMethodsRoute } = require("./routes/forbiddenmethods");
 const { settingRoute } = require("./routes/setting");
 const { keputusanRoute } = require("./routes/keputusan");
 const { tesRoute } = require("./routes/tes");
+const { downloadRoute } = require("./routes/download");
 
 const app = express();
 
 app.use(
   cors({
-    origin: ["http://127.0.0.1:5173"],
+    origin: ["http://127.0.0.1:5173", "https://sidos.vercel.app"],
     credentials: true,
     // exposedHeaders: ["set-cookie"],
   })
@@ -41,5 +42,6 @@ app.use(forbidMethodsRoute);
 app.use(settingRoute);
 app.use(keputusanRoute);
 app.use(tesRoute);
+app.use(downloadRoute);
 
 app.listen(3000);
