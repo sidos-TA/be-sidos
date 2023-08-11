@@ -26,6 +26,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes?.UUID,
         defaultValue: DataTypes.UUIDV4,
       },
+      id_usulan: DataTypes.TEXT,
       no_bp: DataTypes.CHAR(36),
       nip: DataTypes.CHAR(36),
       judul: DataTypes.TEXT,

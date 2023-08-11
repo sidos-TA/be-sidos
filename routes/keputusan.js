@@ -8,14 +8,14 @@ const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
 
 router.post("/addKeputusan", verifyJWT, forbiddenResponse, async (req, res) => {
-  const { no_bp, nip } = req.body;
+  const { no_bp, nip, id_usulan } = req.body;
 
   // utk menentukan dospem sblm ditentukan status judul
   try {
     const getDataUsulan = await readFn({
       model: usulan,
       where: {
-        no_bp,
+        id_usulan,
       },
       usePaginate: false,
       isExcludeId: false,
@@ -116,8 +116,8 @@ router.post("/getKeputusan", verifyJWT, async (req, res) => {
   }
 });
 
-router.post("/getKeputusanByNoBp", verifyJWT, async (req, res) => {
-  const { status_judul, no_bp } = req.body;
+router.post("/getDetailKeputusan", verifyJWT, async (req, res) => {
+  const { status_judul, id_usulan } = req.body;
 
   const arrExcludeDosen = [
     "createdAt",
@@ -129,21 +129,23 @@ router.post("/getKeputusanByNoBp", verifyJWT, async (req, res) => {
   ];
 
   try {
-    const getUsulanBasedNoBp = await readFn({
+    const getUsulanDetail = await readFn({
       model: usulan,
       where: {
-        no_bp,
+        id_usulan,
       },
       exclude: ["roles", "password", "deletedAt", "nip"],
       type: "find",
     });
+
+    const objUsulanDetail = JSON.parse(JSON.stringify(getUsulanDetail));
 
     const getDataKeputusan = await readFn({
       model: mhs,
       type: "find",
       isExcludeId: false,
       where: {
-        no_bp,
+        no_bp: objUsulanDetail?.no_bp,
       },
       include: [
         {
@@ -161,16 +163,16 @@ router.post("/getKeputusanByNoBp", verifyJWT, async (req, res) => {
             ...(status_judul && {
               $status_judul$: status_judul,
             }),
+            id_usulan,
           },
         },
       ],
       exclude: ["password", "roles"],
     });
 
-    const objUsulanBasedNoBp = JSON.parse(JSON.stringify(getUsulanBasedNoBp));
     const objDataKeputusan = JSON.parse(JSON.stringify(getDataKeputusan));
 
-    const objDatas = { ...objDataKeputusan, ...objUsulanBasedNoBp };
+    const objDatas = { ...objDataKeputusan, ...objUsulanDetail };
     res.status(200).send({
       status: 200,
       data: objDatas,

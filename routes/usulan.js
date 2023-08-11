@@ -162,8 +162,6 @@ router?.post("/getSPK", async (req, res) => {
       res.status(200).send({
         status: 200,
         data: dataDosenBySPK,
-        getUsulanMhsUsul,
-        getUsulanMhsBimbing,
       });
     } else {
       errResponse({ res, e: "Data kategori masih kosong" });
@@ -245,8 +243,8 @@ router.post("/getUsulan", verifyJWT, async (req, res) => {
   }
 });
 
-router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
-  const { no_bp } = req.body;
+router.post("/getDetailUsulan", verifyJWT, async (req, res) => {
+  const { id_usulan } = req.body;
   try {
     const getDataUsulan = await readFn({
       model: usulan,
@@ -254,7 +252,7 @@ router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
       usePaginate: false,
       isExcludeId: false,
       where: {
-        no_bp,
+        id_usulan,
       },
       include: [
         {
@@ -264,12 +262,14 @@ router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
       exclude: ["createdAt", "updatedAt", "roles"],
     });
 
+    const arrDatasUsulan = JSON.parse(JSON.stringify(getDataUsulan));
+
     const getDataMhs = await readFn({
       model: mhs,
       type: "find",
       usePaginate: false,
       where: {
-        no_bp,
+        no_bp: arrDatasUsulan?.[0]?.no_bp,
       },
       exclude: ["password", "roles"],
       include: [
@@ -350,7 +350,6 @@ router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
         },
       });
 
-      const arrDatasUsulan = JSON.parse(JSON.stringify(getDataUsulan));
       const arrDatasDosen = JSON.parse(JSON.stringify(getDatasDosen));
       const arrMhsBimbingan = JSON.parse(JSON.stringify(getMhsBimbingan));
 
@@ -393,6 +392,7 @@ router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
         status: 200,
         data: {
           arrDatas: filterArrDsnBimbingan,
+          no_bp: objDatasMhs?.no_bp,
           statusUsulan: objDatasMhs?.usulans?.[0]?.status_usulan,
           mhs_name: objDatasMhs?.name,
           bidang: objDatasMhs?.usulans?.[0]?.bidang,
@@ -404,7 +404,7 @@ router.post("/getUsulanByNoBp", verifyJWT, async (req, res) => {
     } else {
       res?.status(404)?.send({
         status: 404,
-        error: `No. Bp ${no_bp} tidak ditemukan`,
+        error: `No. Bp ${arrDatasUsulan?.[0]?.no_bp} tidak ditemukan`,
       });
     }
     // res.status(200).send({ status: 200, message: "s" });
@@ -531,6 +531,8 @@ router.post(
 
       const dataMhs = JSON.parse(JSON.stringify(getDataMhs));
 
+      const uuidVal = uuid();
+
       const arrDatas = nip?.map((dataNip) => {
         return {
           ...req?.body,
@@ -539,6 +541,7 @@ router.post(
           id: uuid(),
           semester: dataMhs?.semester,
           tahun: dataMhs?.tahun,
+          id_usulan: `${uuidVal}_${no_bp}`.toString(),
         };
       });
 

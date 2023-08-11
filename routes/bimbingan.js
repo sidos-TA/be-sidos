@@ -72,9 +72,13 @@ router.post("/getBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
                 },
               },
             ],
-            attributes: {
-              exclude: arrExcludeUsulan,
-            },
+            attributes: [
+              "id_usulan",
+              "judul",
+              "bidang",
+              "status_judul",
+              "keterangan",
+            ],
             where: {
               "$usulans.status_judul$": { [Op.ne]: ["usulan"] },
               "$usulans.status_usulan$": "confirmed",
@@ -90,7 +94,20 @@ router.post("/getBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
         },
       });
 
-      res.status(200).send({ status: 200, data: getDatasMhs });
+      const arrDatasMhs = JSON.parse(JSON.stringify(getDatasMhs));
+
+      res.status(200).send({
+        status: 200,
+        data: arrDatasMhs?.map((data) => ({
+          ...data,
+          dosen_pembimbing1: data?.usulans?.[0]?.dosen?.name,
+          dosen_pembimbing2: data?.usulans?.[1]?.dosen?.name,
+          judul: data?.usulans?.[0]?.judul,
+          bidang: data?.usulans?.[0]?.bidang,
+          status_judul: data?.usulans?.[0]?.status_judul,
+          keterangan: data?.usulans?.[0]?.keterangan,
+        })),
+      });
     } else {
       errResponse({
         res,
