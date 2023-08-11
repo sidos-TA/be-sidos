@@ -1,5 +1,6 @@
 const xlsx = require("json-as-xlsx");
 const fs = require("fs");
+const errResponse = require("./errResponse");
 
 const downloadHandler = ({
   arrDatas = [],
@@ -30,7 +31,11 @@ const downloadHandler = ({
     xlsx(formatDataBimbingan, settings, () => {
       setTimeout(() => {
         res.download(`${fileName}.xlsx`, () => {
-          fs.unlinkSync(`${fileName}.xlsx`);
+          fs.unlink(`${fileName}.xlsx`, (err) => {
+            if (err) {
+              errResponse({ res, e: err });
+            }
+          });
         });
       }, 280);
     });
