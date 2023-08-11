@@ -10,7 +10,7 @@ const downloadHandler = ({
   columns = [],
 }) => {
   const settings = {
-    fileName, // Name of the resulting spreadsheet
+    fileName: `download_file/${fileName}`, // Name of the resulting spreadsheet
     extraLength: 3, // A bigger number means that columns will be wider
     writeMode: "writeFile", // The available parameters are 'WriteFile' and 'write'. This setting is optional. Useful in such cases https://docs.sheetjs.com/docs/solutions/output#example-remote-file
     writeOptions: {}, // Style options from https://docs.sheetjs.com/docs/api/write-options
@@ -30,8 +30,8 @@ const downloadHandler = ({
     ];
     xlsx(formatDataBimbingan, settings, () => {
       setTimeout(() => {
-        res.download(`${fileName}.xlsx`, () => {
-          fs.unlink(`${fileName}.xlsx`, (err) => {
+        res.download(`download_file/${fileName}.xlsx`, () => {
+          fs.unlink(`download_file/${fileName}.xlsx`, (err) => {
             if (err) {
               errResponse({ res, e: err });
             }
