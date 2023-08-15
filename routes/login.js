@@ -50,12 +50,12 @@ router.post("/login", async (req, res) => {
               roles: dataType?.roles,
               [nipOrnobp]: dataType?.[nipOrnobp],
               ...(nipOrnobp === "no_bp" && {
-                is_usul: dataType?.is_usul,
+                prodi: dataType?.prodi,
               }),
             },
             process.env.JWT_SECRET_KEYS,
             { expiresIn: Number(process.env.JWT_EXPIRES_IN) },
-            // { expiresIn: 3600 },
+            // { expiresIn: 120 },
             { algorithm: "RS256" }
           );
 

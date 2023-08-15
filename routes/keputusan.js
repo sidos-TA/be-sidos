@@ -6,6 +6,7 @@ const deleteFn = require("../helpers/mainFn/deleteFn");
 const readFn = require("../helpers/mainFn/readFn");
 const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
+const filterByKey = require("../helpers/filterByKey");
 
 router.post("/addKeputusan", verifyJWT, forbiddenResponse, async (req, res) => {
   const { no_bp, nip, id_usulan } = req.body;
@@ -33,6 +34,7 @@ router.post("/addKeputusan", verifyJWT, forbiddenResponse, async (req, res) => {
       where: {
         nip: arrDosenNotChoosed?.map((usul) => usul?.nip),
         no_bp,
+        id_usulan,
       },
     });
 
@@ -43,6 +45,7 @@ router.post("/addKeputusan", verifyJWT, forbiddenResponse, async (req, res) => {
       },
       where: {
         no_bp,
+        id_usulan,
       },
     });
 
@@ -58,59 +61,50 @@ router.post("/addKeputusan", verifyJWT, forbiddenResponse, async (req, res) => {
 router.post("/getKeputusan", verifyJWT, async (req, res) => {
   const { status_judul, status_usulan, semester, tahun, no_bp } = req.body;
 
+  const objSearchMhs = filterByKey({ req, arrSearchParams: ["prodi"] });
+
   const arrExcludeUsulan = ["createdAt", "updatedAt", "nip", "no_bp", "id"];
-  const arrExcludeDosen = [
+
+  const arrExcludeMhs = [
     "password",
+    "roles",
+    "usulans",
     "createdAt",
     "updatedAt",
-    "roles",
-    "linkDataPenelitian",
   ];
-  const arrExcludeMhs = ["password", "roles", "usulans"];
 
   try {
     const getSetting = await readFn({
       model: setting,
     });
 
-    const getKeputusan = await readFn({
-      model: mhs,
-      type: "all",
+    const getDatasKeputusan = await readFn({
+      model: usulan,
+      where: {
+        ...(status_judul && {
+          status_judul: "usulan",
+        }),
+        ...(no_bp && {
+          no_bp,
+        }),
+        status_usulan: "confirmed",
+        semester: semester || getSetting?.[0]?.semester || "",
+        tahun: tahun || getSetting?.[0]?.tahun || "",
+      },
       include: [
         {
-          model: usulan,
-          where: {
-            ...(status_judul && {
-              "$usulans.status_judul$": status_judul,
-            }),
-            status_usulan,
-            ...(no_bp && {
-              no_bp,
-            }),
-            "$usulans.semester$": semester || getSetting?.[0]?.semester || "",
-            "$usulans.tahun$": tahun || getSetting?.[0]?.tahun || "",
-          },
-          include: [
-            {
-              model: dosen,
-              attributes: {
-                exclude: arrExcludeDosen,
-              },
-            },
-          ],
+          model: mhs,
           attributes: {
-            exclude: arrExcludeUsulan,
+            exclude: arrExcludeMhs,
           },
+          where: objSearchMhs,
         },
       ],
-      // where: {
-      //   semester: semester || getSetting?.[0]?.semester || "",
-      //   tahun,
-      // },
-      exclude: arrExcludeMhs,
+      exclude: arrExcludeUsulan,
+      group: ["id_usulan"],
     });
 
-    res.status(200).send({ status: 200, data: getKeputusan });
+    res.status(200).send({ status: 200, data: getDatasKeputusan });
   } catch (e) {
     errResponse({ res, e });
   }

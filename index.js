@@ -16,6 +16,8 @@ const { settingRoute } = require("./routes/setting");
 const { keputusanRoute } = require("./routes/keputusan");
 const { tesRoute } = require("./routes/tes");
 const { downloadRoute } = require("./routes/download");
+const { penelitianRoute } = require("./routes/penelitian");
+const { uploadRoute } = require("./routes/upload");
 
 const app = express();
 
@@ -43,5 +45,7 @@ app.use(settingRoute);
 app.use(keputusanRoute);
 app.use(tesRoute);
 app.use(downloadRoute);
+app.use(penelitianRoute);
+app.use(uploadRoute);
 
 app.listen(3000);

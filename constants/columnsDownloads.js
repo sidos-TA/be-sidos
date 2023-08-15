@@ -9,7 +9,7 @@ const columnsDosen = [
   },
   {
     label: "Bidang",
-    value: "bidang",
+    value: "bidangs",
   },
   {
     label: "SKS",

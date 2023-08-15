@@ -7,8 +7,11 @@ const {
   judulData,
   usulan,
   setting,
+  penelitian,
+  bidang: bidangModel,
   sequelize,
 } = require("../models");
+const cloudinary = require("cloudinary");
 const arrJabatanDatas = require("../constants/jabatanValue");
 const arrPendidikanValue = require("../constants/pendidikanValue");
 const { EDAS_Winnowing } = require("../spk_module/EDAS_Winnowing");
@@ -20,7 +23,6 @@ const filterByKey = require("../helpers/filterByKey");
 const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
 const forbiddenResponseDosen = require("../helpers/forbiddenResponseDosen");
-const isStringParseArr = require("../helpers/isStringParseArr");
 const { jaccardSimilarityHandler } = require("../spk_module/Winnowing");
 const { uniqueArrObj } = require("../helpers/uniqueArr_ArrObj");
 const sortArrObj = require("../helpers/sortArrObj");
@@ -41,22 +43,22 @@ router?.post("/getSPK", async (req, res) => {
     delete objSearch["semester"];
     delete objSearch["tahun"];
 
-    const attrDosen = [
-      "name",
-      "nip",
-      "sks",
-      "jabatan",
-      "pendidikan",
-      "bidang",
-      "penelitian",
-    ];
+    const attrDosen = ["name", "nip", "sks", "jabatan", "pendidikan"];
 
-    const getDatas = await readFn({
+    const getDatasDosen = await readFn({
       model: dosen,
       type: "all",
       page,
       usePaginate: false,
       attributes: attrDosen,
+      include: [
+        {
+          model: penelitian,
+        },
+        {
+          model: bidangModel,
+        },
+      ],
     });
 
     const getUsulanMhsUsul = await readFn({
@@ -77,11 +79,24 @@ router?.post("/getSPK", async (req, res) => {
       },
     });
 
-    const arrDatas = JSON.parse(JSON.stringify(getDatas));
+    const arrDatasDosen = JSON.parse(JSON.stringify(getDatasDosen));
+    const datasDosen = arrDatasDosen?.map((dsn) => ({
+      ...dsn,
+      bidangs: uniqueArrObj({ arr: dsn?.bidangs, props: "bidang" }),
+      penelitians: uniqueArrObj({
+        arr: dsn?.penelitians,
+        props: "judulPenelitian",
+      }),
+    }));
+
     const arrUsulanMhsUsul = JSON.parse(JSON.stringify(getUsulanMhsUsul));
     const arrUsulanMhsBimbing = JSON.parse(JSON.stringify(getUsulanMhsBimbing));
 
-    const allData = [...arrDatas, ...arrUsulanMhsUsul, ...arrUsulanMhsBimbing];
+    const allData = [
+      ...datasDosen,
+      ...arrUsulanMhsUsul,
+      ...arrUsulanMhsBimbing,
+    ];
 
     // proses penentuan n_mhs_bimbingan dan n_mhs_usulan
     const result = Object.values(
@@ -126,12 +141,16 @@ router?.post("/getSPK", async (req, res) => {
         return {
           id: data?.id,
           dosenName: data?.name,
-          judulPenelitian: JSON.parse(data?.penelitian)?.map(
-            (penelitian) => penelitian?.title
+          judulPenelitian: data?.penelitians?.map((penelitian) =>
+            penelitian?.judulPenelitian?.trim()
           ),
           SKS: data?.sks,
-          nMhs: data?.n_mhs_usulan,
-          keahlian: JSON.parse(data?.bidang)?.includes(bidang) ? 1 : 0,
+          // nMhs: data?.n_mhs_usulan,
+          keahlian: data?.bidangs
+            ?.map((bidangData) => bidangData?.bidang)
+            .includes(bidang)
+            ? 1
+            : 0,
           jbtn: arrJabatanDatas?.find(
             (jbtn) => jbtn?.jabatan === data?.jabatan?.toLowerCase()
           )?.point,
@@ -139,7 +158,7 @@ router?.post("/getSPK", async (req, res) => {
             (pend) => pend?.pendidikan === data?.pendidikan?.toLowerCase()
           )?.point,
           isJudulDriDosen:
-            jdl_from_dosen?.toLowerCase() === data?.name?.toLowerCase() ? 2 : 1,
+            jdl_from_dosen?.toLowerCase() === data?.nip?.toLowerCase() ? 2 : 1,
         };
       });
 
@@ -147,6 +166,7 @@ router?.post("/getSPK", async (req, res) => {
         strJudulMhs: judul,
         dataDosen: arrDsnDataForSPK,
         bobotKriteria: arrKategori,
+        kGramCount: arrSetting?.[0]?.kGram,
       });
 
       const dataDosenBySPK = [];
@@ -162,9 +182,13 @@ router?.post("/getSPK", async (req, res) => {
       res.status(200).send({
         status: 200,
         data: dataDosenBySPK,
+        arrDsnDataForSPK,
       });
     } else {
-      errResponse({ res, e: "Data kategori masih kosong" });
+      errResponse({
+        res,
+        e: "Data kategori masih kosong, mohon hubungi kaprodi anda",
+      });
     }
   } catch (e) {
     errResponse({ res, e });
@@ -172,22 +196,22 @@ router?.post("/getSPK", async (req, res) => {
 });
 
 router.post("/getUsulan", verifyJWT, async (req, res) => {
-  const { no_bp, status_judul, semester, tahun } = req.body;
+  const { no_bp, semester, tahun } = req.body;
   try {
-    const objSearch = filterByKey({ req });
+    const objSearchMhs = filterByKey({ req, arrSearchParams: ["prodi"] });
+    const objSearchUsulan = filterByKey({
+      req,
+      arrSearchParams: ["bidang"],
+    });
 
     const getDataSettings = await readFn({
       model: setting,
       type: "all",
     });
 
-    if (getDataSettings?.length) {
-      // skenario utk keputusan dan status judul tlah dikirim
-      if (status_judul) {
-        delete objSearch["status_judul"];
-        objSearch["$mh.status_judul$"] = status_judul;
-      }
+    const objSetting = JSON.parse(JSON.stringify(getDataSettings))?.[0];
 
+    if (getDataSettings?.length) {
       const getDatasUsulan = await readFn({
         model: usulan,
         type: "all",
@@ -202,28 +226,24 @@ router.post("/getUsulan", verifyJWT, async (req, res) => {
         include: [
           {
             model: mhs,
-            where: {
-              ...(status_judul && {
-                ...(no_bp && {
-                  "$mh.no_bp$": no_bp,
-                }),
-                "$mh.status_judul$": status_judul,
-              }),
-              // "$mh.semester$": semester || getDataSettings?.[0]?.semester,
-              // "$mh.tahun$": tahun,
-            },
             attributes: {
-              exclude: ["password", "roles", "no_bp"],
+              exclude: ["password", "roles", "no_bp", "createdAt", "updatedAt"],
+            },
+            where: {
+              ...objSearchMhs,
             },
           },
         ],
-
         where: {
-          ...objSearch,
-          semester: semester || getDataSettings?.[0]?.semester || "",
-          tahun: tahun || getDataSettings?.[0]?.tahun || "",
+          ...objSearchUsulan,
+          ...(no_bp && {
+            no_bp,
+          }),
+          status_usulan: "no confirmed",
+          semester: semester || objSetting?.semester || "",
+          tahun: tahun || objSetting?.tahun || "",
         },
-        group: ["no_bp"],
+        group: ["judul"],
       });
 
       const arrDatasUsulan = JSON.parse(JSON.stringify(getDatasUsulan));
@@ -257,6 +277,18 @@ router.post("/getDetailUsulan", verifyJWT, async (req, res) => {
       include: [
         {
           model: dosen,
+          include: [
+            {
+              model: bidangModel,
+              attributes: ["bidang"],
+            },
+            {
+              model: penelitian,
+              attributes: {
+                exclude: ["createdAt", "updatedAt"],
+              },
+            },
+          ],
         },
       ],
       exclude: ["createdAt", "updatedAt", "roles"],
@@ -283,6 +315,9 @@ router.post("/getDetailUsulan", verifyJWT, async (req, res) => {
             "status_judul",
             "status_usulan",
           ],
+          where: {
+            id_usulan,
+          },
         },
       ],
       group: ["usulans.no_bp"],
@@ -321,7 +356,7 @@ router.post("/getDetailUsulan", verifyJWT, async (req, res) => {
             ],
           },
         ],
-        group: ["nip"],
+        group: ["dosen.nip"],
       });
 
       const getMhsBimbingan = await readFn({
@@ -349,6 +384,18 @@ router.post("/getDetailUsulan", verifyJWT, async (req, res) => {
           "$usulans.status_usulan$": "confirmed",
         },
       });
+
+      const getDataBidang = await readFn({
+        model: bidangModel,
+        usePaginate: false,
+      });
+      const getDataPenelitian = await readFn({
+        model: penelitian,
+        usePaginate: false,
+      });
+
+      const arrDatasBidang = JSON.parse(JSON.stringify(getDataBidang));
+      const arrDatasPenelitian = JSON.parse(JSON.stringify(getDataPenelitian));
 
       const arrDatasDosen = JSON.parse(JSON.stringify(getDatasDosen));
       const arrMhsBimbingan = JSON.parse(JSON.stringify(getMhsBimbingan));
@@ -388,17 +435,47 @@ router.post("/getDetailUsulan", verifyJWT, async (req, res) => {
         nipUsulan?.includes(data?.nip)
       );
 
+      // filter data bidang dan penelitian hanya berdasarkan dosen yang diusulkan
+      const filterBidang = arrDatasBidang?.filter((bdg) =>
+        nipUsulan.includes(bdg?.nip)
+      );
+      const filterPenelitian = arrDatasPenelitian?.filter((pnltn) =>
+        nipUsulan.includes(pnltn?.nip)
+      );
+
+      // tambahkan data bidang dan penelitian pada data dosen berdasarkan masing-masing dari nip dosen
+      const dataDosenUsulan = filterArrDsnBimbingan?.map((bmbngan) => {
+        return {
+          ...bmbngan,
+          bidangs: filterBidang?.filter((data) => data?.nip === bmbngan?.nip),
+          penelitians: filterPenelitian?.filter(
+            (data) => data?.nip === bmbngan?.nip
+          ),
+        };
+      });
+
+      const dosenJdlFromDosen = arrDatasDosen?.find(
+        (data) => data?.nip === objDatasMhs?.usulans?.[0]?.jdl_from_dosen
+      );
+
       res?.status(200)?.send({
         status: 200,
         data: {
-          arrDatas: filterArrDsnBimbingan,
+          // arrDatas: filterArrDsnBimbingan,
+          arrDatas: dataDosenUsulan,
           no_bp: objDatasMhs?.no_bp,
           statusUsulan: objDatasMhs?.usulans?.[0]?.status_usulan,
           mhs_name: objDatasMhs?.name,
           bidang: objDatasMhs?.usulans?.[0]?.bidang,
-          jdl_from_dosen: objDatasMhs?.usulans?.[0]?.jdl_from_dosen,
+          // jdl_from_dosen: objDatasMhs?.usulans?.[0]?.jdl_from_dosen,
           judul: objDatasMhs?.usulans?.[0]?.judul,
           file_pra_proposal: objDatasMhs?.usulans?.[0]?.file_pra_proposal,
+          ...(Object.keys(dosenJdlFromDosen || [])?.length && {
+            jdl_from_dosen: {
+              name: dosenJdlFromDosen?.name,
+              nip: dosenJdlFromDosen?.nip,
+            },
+          }),
         },
       });
     } else {
@@ -415,31 +492,22 @@ router.post("/getDetailUsulan", verifyJWT, async (req, res) => {
 
 router.post("/getDataBidang", async (req, res) => {
   try {
-    const getDatas = await readFn({
-      model: dosen,
+    const getDatasBidang = await readFn({
+      model: bidangModel,
       type: "all",
       usePaginate: false,
+      group: ["bidang"],
+      attributes: ["bidang"],
     });
-    const arrDatas = JSON.parse(JSON.stringify(getDatas));
+    const arrDatasBidang = JSON.parse(JSON.stringify(getDatasBidang));
 
-    const arrBidangs = arrDatas?.map((data) => {
-      if (isStringParseArr(data?.bidang)) {
-        return JSON.parse(data?.bidang || "[]");
-      }
-      return data?.bidang;
-    });
-
-    if (arrBidangs?.length && arrBidangs?.every((data) => data !== null)) {
-      const arrNotRepeatBidangs = arrBidangs?.reduce((init, curr) => {
-        init = [...new Set([...init, ...curr])];
-        return init;
-      }, []);
-
-      res?.status(200)?.send({ status: 200, data: arrNotRepeatBidangs });
+    if (arrDatasBidang?.length) {
+      res?.status(200)?.send({ status: 200, data: arrDatasBidang });
     } else {
-      res?.status(400)?.send({
+      errResponse({
+        e: "Data bidang kosong, mohon tambahkan data dosen",
         status: 400,
-        error: "Data bidang kosong, mohon tambahkan data dosen",
+        res,
       });
     }
   } catch (e) {
@@ -519,6 +587,12 @@ router.post(
   async (req, res) => {
     const { no_bp, nip } = req.body;
     try {
+      const getSetting = await readFn({
+        model: setting,
+      });
+
+      const objSetting = JSON.parse(JSON.stringify(getSetting))?.[0];
+
       const getDataMhs = await readFn({
         model: mhs,
         where: {
@@ -545,6 +619,16 @@ router.post(
         };
       });
 
+      /**
+       * 1. fetch all cloudinary
+       * 2. fetch all usulans by semester and tahun
+       * 3. cari yg mana yg g kepake di cloudinary
+       * 4. hapus yg cloudinary
+       */
+      const folderCloudinary = `SIDOS/PRA_PROPOSAL/${
+        getDataMhs?.prodi
+      }/${objSetting?.tahun?.replace("/", "_")}_${objSetting?.semester}`;
+
       await sequelize.transaction(async (transaction) => {
         await multipleFn({
           model: usulan,
@@ -554,6 +638,55 @@ router.post(
           transaction,
         });
       });
+
+      cloudinary.v2.api
+        .resources({
+          prefix: folderCloudinary,
+          type: "upload",
+        })
+        ?.then(async ({ resources }) => {
+          // ambil public_id dari cloudinary
+          const arrPubIdCloudinary = resources?.map((data) => {
+            const publicIdSplitted = data?.public_id?.split("/");
+            return publicIdSplitted?.[publicIdSplitted?.length - 1];
+          });
+
+          // fetch all usulans by semester and tahun after add new usulan
+          const getUsulanSemesterTahun = await readFn({
+            model: usulan,
+            where: {
+              semester: objSetting?.semester,
+              tahun: objSetting?.tahun,
+            },
+            type: "all",
+          });
+
+          const arrUsulanBySmstrThn = JSON.parse(
+            JSON.stringify(getUsulanSemesterTahun)
+          );
+
+          // cari pub_id mana saja yg udh g kepake oleh si arrUsulanBySmstrThn
+          const arrUnusedPubId = [];
+
+          arrUsulanBySmstrThn?.forEach((data) => {
+            const arrDataPraProposalSplit = data?.file_pra_proposal?.split("/");
+            const pubId =
+              arrDataPraProposalSplit?.[arrDataPraProposalSplit?.length - 1];
+            const pubIdNoExt = pubId?.split(".")?.[0];
+
+            arrPubIdCloudinary?.forEach((pubIdCdn) => {
+              if (pubIdNoExt !== pubIdCdn) {
+                arrUnusedPubId?.push(pubIdCdn);
+              }
+            });
+          });
+
+          // delete yg udah g kepake
+          arrUnusedPubId?.forEach((pubId) => {
+            cloudinary.v2.uploader.destroy(`${folderCloudinary}/${pubId}`);
+          });
+        });
+
       res?.status(200)?.send({ status: 200, message: "Sukses nambah usulan" });
     } catch (e) {
       errResponse({ res, e });

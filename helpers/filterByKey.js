@@ -1,19 +1,22 @@
 const { Op } = require("sequelize");
 
-const filterByKey = ({ req }) => {
-  const objKeys = Object.keys(req?.body || "{}");
-  const objSearch = {};
+const filterByKey = ({ req, arrSearchParams = [] }) => {
+  const objSearchParams = {};
 
-  objKeys?.forEach((key) => {
-    objSearch[key] = {
-      [Op?.like]:
-        typeof req?.body?.[key] === "boolean"
-          ? req?.body?.[key]
-          : // : `%${req?.body?.[key]?.split()}%`,
-            `%${req?.body?.[key]}%`,
-    };
+  arrSearchParams?.forEach((sParams) => {
+    if (req?.body?.[sParams]) {
+      objSearchParams[sParams] = {
+        [Op?.like]:
+          typeof req?.body?.[sParams] === "boolean"
+            ? req?.body?.[sParams]
+            : `%${req?.body?.[sParams]}%`,
+      };
+    } else {
+      delete objSearchParams[sParams];
+    }
   });
-  return objSearch;
+
+  return objSearchParams;
 };
 
 module.exports = filterByKey;

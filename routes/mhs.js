@@ -1,7 +1,9 @@
+const { Op } = require("sequelize");
 const encryptPassword = require("../helpers/encryptPassword");
 const errResponse = require("../helpers/errResponse");
 const filterByKey = require("../helpers/filterByKey");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
+const getTotalPageSize = require("../helpers/getTotalPageSize");
 const createFn = require("../helpers/mainFn/createFn");
 const deleteFn = require("../helpers/mainFn/deleteFn");
 const multipleFn = require("../helpers/mainFn/multipleFn");
@@ -21,17 +23,20 @@ router.post("/getAllMhs", verifyJWT, forbiddenResponse, async (req, res) => {
       type: "all",
     });
 
-    const objSearch = filterByKey({ req });
-    const arrDatas = await readFn({
+    const objSearchDataMhs = filterByKey({
+      req,
+      arrSearchParams: ["name", "prodi"],
+    });
+
+    const getDatasMhs = await readFn({
       model: mhs,
-      type: "all",
       page,
       where: {
         tahun: tahun || getDataSettings?.[0]?.tahun || "",
         semester: semester || getDataSettings?.[0]?.semester || "",
-        ...objSearch,
+        ...objSearchDataMhs,
       },
-      ...(Object.keys(objSearch)?.length && {
+      ...(Object.keys(objSearchDataMhs)?.length && {
         usePaginate: false,
       }),
       include: [
@@ -42,13 +47,36 @@ router.post("/getAllMhs", verifyJWT, forbiddenResponse, async (req, res) => {
       attributes: {
         exclude: ["password", "roles"],
       },
+      type: "all",
     });
 
-    res.status(200).send({ status: 200, data: arrDatas });
+    const getAllDatasMhs = await readFn({
+      model: mhs,
+      page,
+      where: {
+        tahun: tahun || getDataSettings?.[0]?.tahun || "",
+        semester: semester || getDataSettings?.[0]?.semester || "",
+        ...objSearchDataMhs,
+      },
+      usePaginate: false,
+      attributes: {
+        exclude: ["password", "roles"],
+      },
+      type: "all",
+    });
+    const arrAllDatasMhs = JSON.parse(JSON.stringify(getAllDatasMhs));
+
+    res.status(200).send({
+      status: 200,
+      data: getDatasMhs,
+      getDatasMhs,
+      countAllDatas: arrAllDatasMhs?.length,
+    });
   } catch (e) {
     errResponse({ res, e });
   }
 });
+
 router.post("/getMhsByNoBp", verifyJWT, async (req, res) => {
   const { no_bp, semester, tahun } = req.body;
   try {
@@ -79,6 +107,9 @@ router.post("/getMhsByNoBp", verifyJWT, async (req, res) => {
           "semester",
           "tahun",
           "judul",
+          "file_pra_proposal",
+          "bidang",
+          "keterangan",
         ],
         include: [
           {
@@ -116,19 +147,23 @@ router.post("/addMhs", verifyJWT, forbiddenResponse, async (req, res) => {
     req?.body?.password || "password123"
   );
 
-  createFn({
-    model: mhs,
-    data: {
-      ...req?.body,
-      password: hashPassword,
-    },
-  })
-    ?.then(() => {
-      res?.status(200).send({ status: 200, message: "Sukses nambah data" });
+  if (req.body?.no_bp) {
+    createFn({
+      model: mhs,
+      data: {
+        ...req?.body,
+        password: hashPassword,
+      },
     })
-    .catch((e) => {
-      errResponse({ res, e });
-    });
+      ?.then(() => {
+        res?.status(200).send({ status: 200, message: "Sukses nambah data" });
+      })
+      .catch((e) => {
+        errResponse({ res, e });
+      });
+  } else {
+    errResponse({ res, e: "Mohon masukkan no_bp" });
+  }
 });
 
 router.post("/addMultipleDataMhs", verifyJWT, forbiddenResponse, (req, res) => {
@@ -156,9 +191,25 @@ router.post("/addMultipleDataMhs", verifyJWT, forbiddenResponse, (req, res) => {
 router.post("/updateDataMhs", verifyJWT, (req, res) => {
   const { no_bp } = req.body;
 
+  delete req.body["photo"];
+
   updateFn({ model: mhs, data: req?.body, where: { no_bp } })
-    ?.then(() => {
-      res?.status(200).send({ status: 200, message: "Sukses update data" });
+    ?.then(async () => {
+      const getNewDatasMhs = await readFn({
+        model: mhs,
+        where: {
+          no_bp,
+        },
+        type: "find",
+        usePaginate: false,
+        attributes: ["prodi"],
+      });
+
+      res?.status(200).send({
+        status: 200,
+        message: "Sukses update data",
+        data: getNewDatasMhs,
+      });
     })
     ?.catch((e) => {
       errResponse({ e, res });

@@ -36,7 +36,7 @@ module.exports = {
         type: Sequelize.STRING,
       },
       file_pra_proposal: {
-        type: Sequelize.BLOB,
+        type: Sequelize.STRING,
       },
       status_usulan: {
         type: Sequelize.ENUM("confirmed", "no confirmed"),

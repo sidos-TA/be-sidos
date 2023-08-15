@@ -12,16 +12,11 @@ module.exports = {
         type: Sequelize.STRING,
       },
       photo: {
-        type: Sequelize.BLOB("medium"),
+        type: Sequelize.STRING,
       },
       password: {
         type: Sequelize.TEXT,
       },
-
-      bidang: {
-        type: Sequelize.TEXT,
-      },
-
       sks: {
         type: Sequelize.INTEGER,
       },
@@ -30,9 +25,6 @@ module.exports = {
       },
       pendidikan: {
         type: Sequelize.STRING,
-      },
-      penelitian: {
-        type: Sequelize.TEXT,
       },
       linkDataPenelitian: {
         type: Sequelize.STRING,

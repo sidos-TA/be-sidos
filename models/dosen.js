@@ -12,6 +12,14 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "nip",
       });
 
+      dosen.hasMany(models?.penelitian, {
+        foreignKey: "nip",
+      });
+
+      dosen.hasMany(models?.bidang, {
+        foreignKey: "nip",
+      });
+
       //   // define association here
     }
   }
@@ -23,7 +31,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.CHAR(36),
       },
       name: DataTypes.STRING,
-      photo: DataTypes.BLOB("medium"),
+      photo: DataTypes.STRING,
       password: {
         type: DataTypes.TEXT,
         defaultValue: {
@@ -31,11 +39,9 @@ module.exports = (sequelize, DataTypes) => {
           defaultValue: "password123",
         },
       },
-      bidang: DataTypes.TEXT,
       sks: DataTypes.INTEGER,
       jabatan: DataTypes.STRING,
       pendidikan: DataTypes.STRING,
-      penelitian: DataTypes.TEXT,
       linkDataPenelitian: DataTypes.STRING,
       roles: {
         type: DataTypes.INTEGER,

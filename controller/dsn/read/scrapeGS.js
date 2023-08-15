@@ -10,14 +10,16 @@ const scrapeGS = async (gs_url) => {
   const arrPenelitian = [];
   const arrBidang = [];
 
+  const baseUrl = gs_url?.split("/c")?.[0];
+
   dom.querySelectorAll(".gsc_a_tr").forEach((data) => {
-    const title = data?.querySelector(".gsc_a_at").textContent;
-    const baseUrl = gs_url?.split("/c")?.[0];
-    const link_title = `${baseUrl}${data
+    const judulPenelitian = data?.querySelector(".gsc_a_at").textContent;
+    const link = `${baseUrl}${data
       ?.querySelector(".gsc_a_at")
       .getAttribute("href")}`;
+    const tahun = data?.querySelector(".gsc_a_y").textContent;
 
-    arrPenelitian.push({ title, link_title });
+    arrPenelitian.push({ judulPenelitian, link, tahun });
   });
 
   dom.querySelectorAll("#gsc_prf_int a").forEach((data) => {
@@ -25,7 +27,10 @@ const scrapeGS = async (gs_url) => {
   });
 
   return {
-    dataPenelitian: sameArrObj({ arr: arrPenelitian, props: "title" }),
+    dataPenelitian: sameArrObj({
+      arr: arrPenelitian,
+      props: "judulPenelitian",
+    }),
     bidang: arrBidang,
   };
 };
