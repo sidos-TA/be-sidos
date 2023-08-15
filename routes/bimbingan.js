@@ -26,6 +26,12 @@ const { Op } = require("sequelize");
 router.post("/getBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
   const { semester, tahun } = req.body;
 
+  const objSearchUsulan = filterByKey({
+    req,
+    arrSearchParams: ["bidang", "status_judul"],
+  });
+  const objSearchMhs = filterByKey({ req, arrSearchParams: ["prodi"] });
+
   const arrExcludeMhs = ["password", "roles"];
   const arrExcludeUsulan = [
     "createdAt",
@@ -52,11 +58,6 @@ router.post("/getBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
     });
 
     if (getDataSettings?.[0]?.semester) {
-      const objSearch = filterByKey({ req });
-
-      delete objSearch["semester"];
-      delete objSearch["tahun"];
-
       const getDatasMhs = await readFn({
         model: mhs,
         type: "all",
@@ -84,11 +85,12 @@ router.post("/getBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
               "$usulans.status_usulan$": "confirmed",
               "$usulans.semester$": semester || getDataSettings?.[0]?.semester,
               "$usulans.tahun$": tahun || getDataSettings?.[0]?.tahun || "",
+              ...objSearchUsulan,
             },
           },
         ],
         where: {
-          ...objSearch,
+          ...objSearchMhs,
           // semester: semester || getDataSettings?.[0]?.semester,
           // tahun,
         },
@@ -107,6 +109,7 @@ router.post("/getBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
           status_judul: data?.usulans?.[0]?.status_judul,
           keterangan: data?.usulans?.[0]?.keterangan,
         })),
+        getDatasMhs,
       });
     } else {
       errResponse({

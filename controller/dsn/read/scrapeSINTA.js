@@ -11,18 +11,21 @@ const scrapeSINTA = async (link) => {
   const arrBidang = [];
 
   dom.querySelectorAll(".ar-list-item").forEach((data) => {
-    const title = data?.querySelector(".ar-title a").textContent;
-    const link_title = data?.querySelector(".ar-title a").getAttribute("href");
-
-    arrPenelitian.push({ title, link_title });
+    const judulPenelitian = data?.querySelector(".ar-title a").textContent;
+    const link = data?.querySelector(".ar-title a").getAttribute("href");
+    const tahun = data?.querySelector(".ar-year").textContent?.trim();
+    arrPenelitian.push({ judulPenelitian, link, tahun });
   });
 
-  dom.querySelectorAll(".subject-list").forEach((data) => {
+  dom.querySelectorAll(".subject-list li a").forEach((data) => {
     arrBidang.push(data?.textContent?.trim());
   });
 
   return {
-    dataPenelitian: sameArrObj({ arr: arrPenelitian, props: "title" }),
+    dataPenelitian: sameArrObj({
+      arr: arrPenelitian,
+      props: "judulPenelitian",
+    }),
     bidang: arrBidang,
   };
 };

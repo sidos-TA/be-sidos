@@ -40,7 +40,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       tahun: DataTypes.STRING,
       jdl_from_dosen: DataTypes.STRING,
-      file_pra_proposal: DataTypes.BLOB,
+      file_pra_proposal: DataTypes.STRING,
       status_usulan: {
         type: DataTypes.ENUM("confirmed", "no confirm"),
         defaultValue: "no confirmed",

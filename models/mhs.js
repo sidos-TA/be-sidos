@@ -24,7 +24,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.CHAR(36),
       },
       name: DataTypes.STRING,
-      photo: DataTypes.BLOB("medium"),
+      photo: DataTypes.STRING,
       password: {
         type: DataTypes.TEXT,
         defaultValue: {

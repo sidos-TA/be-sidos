@@ -14,7 +14,10 @@ const { uuid } = require("uuidv4");
 // -READ-
 router.post("/getJudul", async (req, res) => {
   try {
-    const objSearch = filterByKey({ req });
+    const objSearch = filterByKey({
+      req,
+      arrSearchParams: ["judul", "bidang", "tingkatan"],
+    });
     const arrDatasJudul = await readFn({
       model: judulData,
       type: "all",
@@ -55,7 +58,7 @@ router.post("/addJudul", verifyJWT, forbiddenResponse, async (req, res) => {
       model: judulData,
       data: req.body,
     });
-    res.status(200).send({ status: 200, data: "Sukses nambah judul" });
+    res.status(200).send({ status: 200, message: "Sukses nambah judul" });
   } catch (e) {
     errResponse({ res, e });
   }

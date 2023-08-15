@@ -1,7 +1,10 @@
+const { Op } = require("sequelize");
 const { uuid } = require("uuidv4");
+const addBidang = require("../controller/bidang/addBidang");
 const scrapeGS = require("../controller/dsn/read/scrapeGS");
 const scrapeSINTA = require("../controller/dsn/read/scrapeSINTA");
 const scrapeSIPEG = require("../controller/dsn/read/scrapeSIPEG");
+const addPenelitian = require("../controller/penelitian/addPenelitian");
 const encryptPassword = require("../helpers/encryptPassword");
 const errResponse = require("../helpers/errResponse");
 const filterByKey = require("../helpers/filterByKey");
@@ -11,8 +14,17 @@ const deleteFn = require("../helpers/mainFn/deleteFn");
 const multipleFn = require("../helpers/mainFn/multipleFn");
 const readFn = require("../helpers/mainFn/readFn");
 const updateFn = require("../helpers/mainFn/updateFn");
+const { uniqueArrObj } = require("../helpers/uniqueArr_ArrObj");
 const verifyJWT = require("../helpers/verifyJWT");
-const { dosen, usulan, mhs, setting } = require("../models");
+const {
+  dosen,
+  usulan,
+  mhs,
+  setting,
+  penelitian,
+  bidang,
+  sequelize,
+} = require("../models");
 const router = require("./router");
 
 // -READ-
@@ -29,13 +41,6 @@ router.post("/getAllDosen", verifyJWT, async (req, res) => {
       model: setting,
     });
     const arrSetting = JSON.parse(JSON.stringify(getSetting));
-
-    const objSearch = filterByKey({ req });
-
-    delete objSearch["usePaginate"];
-    delete objSearch["showRoles"];
-    delete objSearch["semester"];
-    delete objSearch["tahun"];
 
     const showRolesAttr = showRoles
       ? ["name", "nip", "sks", "jabatan", "pendidikan", "roles"]
@@ -54,11 +59,7 @@ router.post("/getAllDosen", verifyJWT, async (req, res) => {
       model: dosen,
       type: "all",
       page,
-      usePaginate,
-      where: objSearch,
-      ...(Object.keys(objSearch)?.length && {
-        usePaginate: false,
-      }),
+      usePaginate: false,
       attributes: showRolesAttr,
     });
     const getUsulanMhsUsul = await readFn({
@@ -138,26 +139,41 @@ router.post(
         exclude: ["password", "roles"],
         include: [
           {
-            model: usulan,
-            include: {
-              model: mhs,
-              attributes: ["semester", "tahun", "photo", "name", "prodi"],
-              where: {
-                semester: semester || arrSetting?.[0]?.semester || "",
-                tahun: tahun || arrSetting?.[0]?.tahun || "",
-              },
+            model: penelitian,
+            attributes: {
+              exclude: ["createdAt", "updatedAt"],
             },
-            attributes: ["nip", "judul"],
+          },
+          {
+            model: bidang,
+            attributes: ["bidang"],
           },
         ],
       });
 
+      const getDatasUsulan = await readFn({
+        model: usulan,
+        include: {
+          model: mhs,
+          attributes: ["semester", "tahun", "photo", "name", "prodi"],
+        },
+        where: {
+          status_usulan: "confirmed",
+          semester: semester || arrSetting?.[0]?.semester || "",
+          tahun: tahun || arrSetting?.[0]?.tahun || "",
+          nip,
+        },
+      });
+
       const objDatasDosen = JSON.parse(JSON.stringify(getDatasDosen));
+      const arrDatasUsulan = JSON.parse(JSON.stringify(getDatasUsulan));
+
+      objDatasDosen["usulans"] = arrDatasUsulan;
 
       if (Object.keys(objDatasDosen || {})?.length) {
         res.status(200).send({ status: 200, data: objDatasDosen });
       } else {
-        errResponse({ res, e: "Data dosen tidak tersedia", status: 404 });
+        errResponse({ res, e: "Data dosen tidak tersedia", status: 400 });
       }
     } catch (e) {
       errResponse({ res, e });
@@ -166,7 +182,7 @@ router.post(
 );
 
 router.post("/scrapeSINTA", async (req, res) => {
-  const { link } = req.body;
+  const { link, nip, oldArrDatas = [] } = req.body;
 
   try {
     const dataGSSINTA = await scrapeSINTA(link);
@@ -176,14 +192,42 @@ router.post("/scrapeSINTA", async (req, res) => {
       bidang: dataGSSINTA?.bidang,
     };
 
-    res.status(200).send({ status: 200, data: resultData });
+    /**
+     * 1. Hapus semua data penelitian/bidang, baik datany udh ada/blum
+     * 2. Tambahkan data yg baru
+     */
+    if (link?.includes("sinta.kemdikbud.go.id/authors/profile")) {
+      // kalau udah ada, bakal diedit
+      if (nip && oldArrDatas?.length) {
+        const uniqueNewArrPenelitian = uniqueArrObj({
+          arr: [...resultData.penelitian, ...oldArrDatas],
+          props: "judulPenelitian",
+        });
+
+        addPenelitian({
+          arrDatas: uniqueNewArrPenelitian.map((data) => ({
+            ...data,
+            nip,
+          })),
+          where: {
+            nip,
+          },
+        });
+      }
+      res.status(200).send({ status: 200, data: resultData });
+    } else {
+      errResponse({
+        res,
+        e: "Link SINTA tidak sesuai, mohon masukkan sesuai format seperti https://sinta.kemdikbud.go.id/authors/profile/5979627",
+      });
+    }
   } catch (e) {
     errResponse({ res, e });
   }
 });
 
 router.post("/scrapeGS", verifyJWT, forbiddenResponse, async (req, res) => {
-  const { link } = req.body;
+  const { link, nip, oldArrDatas = [] } = req.body;
 
   try {
     if (
@@ -196,6 +240,22 @@ router.post("/scrapeGS", verifyJWT, forbiddenResponse, async (req, res) => {
         bidang,
       };
 
+      if (nip && oldArrDatas?.length) {
+        const uniqueNewArrPenelitian = uniqueArrObj({
+          arr: [...dataPenelitian, ...oldArrDatas],
+          props: "judulPenelitian",
+        });
+
+        addPenelitian({
+          arrDatas: uniqueNewArrPenelitian?.map((data) => ({
+            ...data,
+            nip,
+          })),
+          where: {
+            nip,
+          },
+        });
+      }
       res.status(200).send({ status: 200, data: resultData });
     } else {
       throw new Error("Mohon masukkan link google schoolar");
@@ -227,6 +287,29 @@ router.post("/scrapeSIPEG", verifyJWT, forbiddenResponse, async (req, res) => {
   }
 });
 
+router.post(
+  "/getSourcePenelitian",
+  verifyJWT,
+  forbiddenResponse,
+  async (req, res) => {
+    const { nip } = req.body;
+    try {
+      const getDataPenelitian = await readFn({
+        model: dosen,
+        where: {
+          nip,
+        },
+        type: "find",
+        attributes: ["linkDataPenelitian"],
+      });
+
+      res.status(200)?.send({ status: 200, data: getDataPenelitian });
+    } catch (e) {
+      errResponse({ res, e });
+    }
+  }
+);
+
 // -CREATE-
 /**Ini hanya utk pribadi */
 router.post("/addDataDosen_private", async (req, res) => {
@@ -234,16 +317,54 @@ router.post("/addDataDosen_private", async (req, res) => {
     req?.body?.password || "password123"
   );
 
-  createFn({
-    data: { ...req?.body, password: hashPassword, id: uuid() },
-    model: dosen,
-  })
-    ?.then(() => {
-      res?.status(200).send({ status: 200, message: "Sukses nambah data" });
-    })
-    .catch((e) => {
-      errResponse({ res, e });
+  const dataDosen = {
+    ...req.body,
+  };
+
+  const penelitianReqData = req.body.penelitian || [];
+  const bidangReqData = req.body.bidang || [];
+
+  delete dataDosen["penelitian"];
+  delete dataDosen["bidang"];
+
+  try {
+    dosen.addHook("afterCreate", async (_, options) => {
+      if (penelitianReqData?.length) {
+        await multipleFn({
+          model: penelitian,
+          arrDatas: penelitianReqData?.map((data) => ({
+            ...data,
+            nip: req.body?.nip,
+          })),
+          transaction: options?.transaction,
+        });
+      }
+
+      if (bidangReqData?.length) {
+        await multipleFn({
+          model: bidang,
+          arrDatas: bidangReqData?.map((data) => ({
+            ...data,
+            nip: req.body?.nip,
+          })),
+          transaction: options?.transaction,
+        });
+      }
     });
+
+    await sequelize.transaction(async (transaction) => {
+      await createFn({
+        data: { ...req?.body, password: hashPassword, id: uuid() },
+        model: dosen,
+        transaction,
+      });
+    });
+    res
+      ?.status(200)
+      ?.send({ status: 200, message: "Sukses nambah data dosen" });
+  } catch (e) {
+    errResponse({ res, e });
+  }
 });
 
 router.post("/addDataDosen", verifyJWT, forbiddenResponse, async (req, res) => {
@@ -251,16 +372,51 @@ router.post("/addDataDosen", verifyJWT, forbiddenResponse, async (req, res) => {
     req?.body?.password || "password123"
   );
 
-  createFn({
-    data: { ...req?.body, password: hashPassword, id: uuid() },
-    model: dosen,
-  })
-    ?.then(() => {
-      res?.status(200).send({ status: 200, message: "Sukses nambah data" });
-    })
-    .catch((e) => {
-      errResponse({ res, e });
+  const dataDosen = {
+    ...req.body,
+  };
+
+  const penelitianReqData = req.body.penelitian?.map((data) => ({
+    ...data,
+    nip: req.body.nip,
+  }));
+  const bidangReqData = req.body.bidang?.map((data) => ({
+    ...data,
+    nip: req.body.nip,
+    bidang: data,
+  }));
+
+  delete dataDosen["penelitian"];
+  delete dataDosen["bidang"];
+
+  try {
+    dosen.addHook("afterCreate", async (_, options) => {
+      await multipleFn({
+        model: penelitian,
+        arrDatas: penelitianReqData,
+        transaction: options?.transaction,
+      });
+
+      await multipleFn({
+        model: bidang,
+        arrDatas: bidangReqData,
+        transaction: options?.transaction,
+      });
     });
+
+    await sequelize.transaction(async (transaction) => {
+      await createFn({
+        data: { ...req?.body, password: hashPassword, id: uuid() },
+        model: dosen,
+        transaction,
+      });
+    });
+    res
+      ?.status(200)
+      ?.send({ status: 200, message: "Sukses nambah data dosen" });
+  } catch (e) {
+    errResponse({ res, e });
+  }
 });
 
 router.post(
@@ -296,9 +452,39 @@ router.post(
 router.post("/updateDataDosen", verifyJWT, forbiddenResponse, (req, res) => {
   const { nip } = req.body;
 
+  const arrBidang = req.body.bidang || [];
+
+  delete req.body["bidang"];
+  delete req.body["photo"];
+
   updateFn({ model: dosen, data: req?.body, where: { nip } })
-    ?.then(() => {
-      res?.status(200).send({ status: 200, message: "Sukses update data" });
+    ?.then(async () => {
+      if (arrBidang?.length) {
+        addBidang({
+          arrDatas: arrBidang?.map((data) => ({
+            ...data,
+            nip,
+          })),
+          where: {
+            nip,
+          },
+        });
+      }
+
+      const getNewDatasDosen = await readFn({
+        model: dosen,
+        type: "find",
+        where: {
+          nip,
+        },
+        usePaginate: false,
+        attributes: ["jabatan"],
+      });
+      res?.status(200).send({
+        status: 200,
+        message: "Sukses update data",
+        data: getNewDatasDosen,
+      });
     })
     ?.catch((e) => {
       errResponse({ res, e });
@@ -319,6 +505,36 @@ router.post(
       ?.catch((e) => {
         errResponse({ res, e });
       });
+  }
+);
+
+router.post(
+  "/updateSourcePenelitian",
+  verifyJWT,
+  forbiddenResponse,
+  async (req, res) => {
+    const { source_link, nip } = req.body;
+    try {
+      updateFn({
+        model: dosen,
+        data: {
+          linkDataPenelitian: source_link,
+        },
+        where: {
+          nip,
+        },
+      })
+        ?.then(() => {
+          res
+            .status(200)
+            ?.send({ status: 200, message: "Sukses update link penelitian" });
+        })
+        ?.catch((e) => {
+          errResponse({ e, res });
+        });
+    } catch (e) {
+      errResponse({ e, res });
+    }
   }
 );
 

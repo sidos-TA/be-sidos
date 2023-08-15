@@ -11,7 +11,7 @@ const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
 
 // -READ-
-router.post("/getAllProdi", verifyJWT, forbiddenResponse, async (req, res) => {
+router.post("/getAllProdi", verifyJWT, async (req, res) => {
   try {
     const arrDatasProdi = await readFn({
       model: prodi,
@@ -47,7 +47,7 @@ router.post("/addProdi", verifyJWT, forbiddenResponse, async (req, res) => {
       model: prodi,
       data: req.body,
     });
-    res.status(200).send({ status: 200, data: "Sukses nambah prodi" });
+    res.status(200).send({ status: 200, message: "Sukses nambah prodi" });
   } catch (e) {
     errResponse({ res, e });
   }

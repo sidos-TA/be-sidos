@@ -23,14 +23,15 @@ const readFn = ({
     ...(where && {
       where,
     }),
-    ...(usePaginate && {
-      offset: page * 10 - 10,
-      limit: 10,
-    }),
+
     attributes: {
       ...props?.attributes,
       exclude: [...exclude, isExcludeId && "id"],
     },
+    ...(usePaginate && {
+      offset: page * 10 - 10,
+      limit: 10,
+    }),
     ...props,
   });
 };

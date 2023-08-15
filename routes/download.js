@@ -1,7 +1,13 @@
 const errResponse = require("../helpers/errResponse");
 const router = require("./router");
 const readFn = require("../helpers/mainFn/readFn");
-const { usulan, setting, dosen, mhs } = require("../models");
+const {
+  usulan,
+  setting,
+  dosen,
+  mhs,
+  bidang: bidangModel,
+} = require("../models");
 const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
 const { Op } = require("sequelize");
@@ -107,8 +113,14 @@ router.post("/download_mhs", verifyJWT, forbiddenResponse, async (req, res) => {
 
     const arrDatasMhs = JSON.parse(JSON.stringify(getDatasMhs));
 
+    // convert pswd yang masih terencrypt, soalny mau dibagikan ke mhs kan
+    const datasMhs = arrDatasMhs?.map((mhs) => ({
+      ...mhs,
+      password: "password123",
+    }));
+
     downloadHandler({
-      arrDatas: arrDatasMhs,
+      arrDatas: datasMhs,
       res,
       fileName: "tes_mhs",
       sheetName: "Data Mahasiswa",
@@ -144,8 +156,13 @@ router.post(
         model: dosen,
         type: "all",
         usePaginate: false,
-
-        attributes: ["name", "nip", "bidang", "sks", "jabatan", "pendidikan"],
+        include: [
+          {
+            model: bidangModel,
+            attributes: ["bidang"],
+          },
+        ],
+        attributes: ["name", "nip", "sks", "jabatan", "pendidikan"],
       });
 
       const getUsulanMhsUsul = await readFn({
@@ -207,8 +224,13 @@ router.post(
         }, {})
       );
 
+      const arrDatasDownload = result?.map((data) => ({
+        ...data,
+        bidangs: data?.bidangs?.map((bdg) => bdg?.bidang)?.join(", "),
+      }));
+
       downloadHandler({
-        arrDatas: result,
+        arrDatas: arrDatasDownload,
         res,
         fileName: "Data Dosen",
         sheetName: "Data Dosen",

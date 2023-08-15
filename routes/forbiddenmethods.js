@@ -15,25 +15,28 @@ const filterByKey = require("../helpers/filterByKey");
 router.post("/getforbidmethods", async (req, res) => {
   const { tahun, semester } = req.body;
   try {
+    const objSearchParams = filterByKey({
+      req,
+      arrSearchParams: ["methodName", "bidang"],
+    });
+
     const getSettings = await readFn({
       model: setting,
     });
     const arrSetting = JSON.parse(JSON.stringify(getSettings));
-
-    const objSearch = filterByKey({ req });
-
-    delete objSearch["tahun"];
-    delete objSearch["semester"];
 
     const getDataForbidMethods = await readFn({
       model: forbiddenMethod,
       type: "all",
       isExcludeId: false,
       where: {
-        ...objSearch,
+        ...objSearchParams,
         tahun: tahun || arrSetting?.[0]?.tahun || "",
         semester: semester || arrSetting?.[0]?.semester || "",
       },
+      ...(Object.keys(objSearchParams)?.length && {
+        usePaginate: false,
+      }),
     });
     res.status(200)?.send({ status: 200, data: getDataForbidMethods });
   } catch (e) {

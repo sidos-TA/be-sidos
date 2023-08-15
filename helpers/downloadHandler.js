@@ -28,6 +28,7 @@ const downloadHandler = ({
         content: arrDatas,
       },
     ];
+
     xlsx(formatDataBimbingan, settings, () => {
       setTimeout(() => {
         res.download(`download_file/${fileName}.xlsx`, () => {
