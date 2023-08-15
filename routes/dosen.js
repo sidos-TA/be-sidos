@@ -5,6 +5,7 @@ const scrapeGS = require("../controller/dsn/read/scrapeGS");
 const scrapeSINTA = require("../controller/dsn/read/scrapeSINTA");
 const scrapeSIPEG = require("../controller/dsn/read/scrapeSIPEG");
 const addPenelitian = require("../controller/penelitian/addPenelitian");
+const allowHelp = require("../helpers/allowHelp");
 const encryptPassword = require("../helpers/encryptPassword");
 const errResponse = require("../helpers/errResponse");
 const filterByKey = require("../helpers/filterByKey");
@@ -121,7 +122,8 @@ router.post("/getAllDosen", verifyJWT, async (req, res) => {
 router.post(
   "/getDosenByNIP",
   verifyJWT,
-  forbiddenResponse,
+  // forbiddenResponse,
+  allowHelp,
   async (req, res) => {
     const { nip, semester, tahun } = req.body;
 
@@ -367,57 +369,63 @@ router.post("/addDataDosen_private", async (req, res) => {
   }
 });
 
-router.post("/addDataDosen", verifyJWT, forbiddenResponse, async (req, res) => {
-  const hashPassword = await encryptPassword(
-    req?.body?.password || "password123"
-  );
+router.post(
+  "/addDataDosen",
+  verifyJWT,
+  // forbiddenResponse,
+  allowHelp,
+  async (req, res) => {
+    const hashPassword = await encryptPassword(
+      req?.body?.password || "password123"
+    );
 
-  const dataDosen = {
-    ...req.body,
-  };
+    const dataDosen = {
+      ...req.body,
+    };
 
-  const penelitianReqData = req.body.penelitian?.map((data) => ({
-    ...data,
-    nip: req.body.nip,
-  }));
-  const bidangReqData = req.body.bidang?.map((data) => ({
-    ...data,
-    nip: req.body.nip,
-    bidang: data,
-  }));
+    const penelitianReqData = req.body.penelitian?.map((data) => ({
+      ...data,
+      nip: req.body.nip,
+    }));
+    const bidangReqData = req.body.bidang?.map((data) => ({
+      ...data,
+      nip: req.body.nip,
+      bidang: data,
+    }));
 
-  delete dataDosen["penelitian"];
-  delete dataDosen["bidang"];
+    delete dataDosen["penelitian"];
+    delete dataDosen["bidang"];
 
-  try {
-    dosen.addHook("afterCreate", async (_, options) => {
-      await multipleFn({
-        model: penelitian,
-        arrDatas: penelitianReqData,
-        transaction: options?.transaction,
+    try {
+      dosen.addHook("afterCreate", async (_, options) => {
+        await multipleFn({
+          model: penelitian,
+          arrDatas: penelitianReqData,
+          transaction: options?.transaction,
+        });
+
+        await multipleFn({
+          model: bidang,
+          arrDatas: bidangReqData,
+          transaction: options?.transaction,
+        });
       });
 
-      await multipleFn({
-        model: bidang,
-        arrDatas: bidangReqData,
-        transaction: options?.transaction,
+      await sequelize.transaction(async (transaction) => {
+        await createFn({
+          data: { ...req?.body, password: hashPassword, id: uuid() },
+          model: dosen,
+          transaction,
+        });
       });
-    });
-
-    await sequelize.transaction(async (transaction) => {
-      await createFn({
-        data: { ...req?.body, password: hashPassword, id: uuid() },
-        model: dosen,
-        transaction,
-      });
-    });
-    res
-      ?.status(200)
-      ?.send({ status: 200, message: "Sukses nambah data dosen" });
-  } catch (e) {
-    errResponse({ res, e });
+      res
+        ?.status(200)
+        ?.send({ status: 200, message: "Sukses nambah data dosen" });
+    } catch (e) {
+      errResponse({ res, e });
+    }
   }
-});
+);
 
 router.post(
   "/addMultipleDataDosen",
@@ -449,47 +457,53 @@ router.post(
 );
 
 // -UPDATE-
-router.post("/updateDataDosen", verifyJWT, forbiddenResponse, (req, res) => {
-  const { nip } = req.body;
+router.post(
+  "/updateDataDosen",
+  verifyJWT,
+  // forbiddenResponse,
+  allowHelp,
+  (req, res) => {
+    const { nip } = req.body;
 
-  const arrBidang = req.body.bidang || [];
+    const arrBidang = req.body.bidang || [];
 
-  delete req.body["bidang"];
-  delete req.body["photo"];
+    delete req.body["bidang"];
+    delete req.body["photo"];
 
-  updateFn({ model: dosen, data: req?.body, where: { nip } })
-    ?.then(async () => {
-      if (arrBidang?.length) {
-        addBidang({
-          arrDatas: arrBidang?.map((data) => ({
-            ...data,
-            nip,
-          })),
+    updateFn({ model: dosen, data: req?.body, where: { nip } })
+      ?.then(async () => {
+        if (arrBidang?.length) {
+          addBidang({
+            arrDatas: arrBidang?.map((data) => ({
+              ...data,
+              nip,
+            })),
+            where: {
+              nip,
+            },
+          });
+        }
+
+        const getNewDatasDosen = await readFn({
+          model: dosen,
+          type: "find",
           where: {
             nip,
           },
+          usePaginate: false,
+          attributes: ["jabatan"],
         });
-      }
-
-      const getNewDatasDosen = await readFn({
-        model: dosen,
-        type: "find",
-        where: {
-          nip,
-        },
-        usePaginate: false,
-        attributes: ["jabatan"],
+        res?.status(200).send({
+          status: 200,
+          message: "Sukses update data",
+          data: getNewDatasDosen,
+        });
+      })
+      ?.catch((e) => {
+        errResponse({ res, e });
       });
-      res?.status(200).send({
-        status: 200,
-        message: "Sukses update data",
-        data: getNewDatasDosen,
-      });
-    })
-    ?.catch((e) => {
-      errResponse({ res, e });
-    });
-});
+  }
+);
 
 router.post(
   "/updateMultipleDataDosen",
@@ -539,17 +553,23 @@ router.post(
 );
 
 // -DELETE-
-router.post("/deleteDataDosen", verifyJWT, forbiddenResponse, (req, res) => {
-  const { nip } = req.body;
+router.post(
+  "/deleteDataDosen",
+  verifyJWT,
+  //  forbiddenResponse,
+  allowHelp,
+  (req, res) => {
+    const { nip } = req.body;
 
-  deleteFn({ model: dosen, where: { nip } })
-    ?.then(() => {
-      res?.status(200)?.send({ status: 200, message: "Sukses delete data" });
-    })
-    ?.catch((e) => {
-      errResponse({ res, e });
-    });
-});
+    deleteFn({ model: dosen, where: { nip } })
+      ?.then(() => {
+        res?.status(200)?.send({ status: 200, message: "Sukses delete data" });
+      })
+      ?.catch((e) => {
+        errResponse({ res, e });
+      });
+  }
+);
 
 module.exports = {
   dsnRoute: router,
