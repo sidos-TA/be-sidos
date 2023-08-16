@@ -228,66 +228,79 @@ router.post("/scrapeSINTA", async (req, res) => {
   }
 });
 
-router.post("/scrapeGS", verifyJWT, forbiddenResponse, async (req, res) => {
-  const { link, nip, oldArrDatas = [] } = req.body;
+router.post(
+  "/scrapeGS",
+  verifyJWT,
+  //  forbiddenResponse,
+  allowHelp,
+  async (req, res) => {
+    const { link, nip, oldArrDatas = [] } = req.body;
 
-  try {
-    if (
-      (link && link?.includes("https://scholar.google.co.id/citations?user")) ||
-      link?.includes("https://scholar.google.com/citations?user")
-    ) {
-      const { dataPenelitian, bidang } = await scrapeGS(link);
-      const resultData = {
-        penelitian: dataPenelitian,
-        bidang,
-      };
+    try {
+      if (
+        (link &&
+          link?.includes("https://scholar.google.co.id/citations?user")) ||
+        link?.includes("https://scholar.google.com/citations?user")
+      ) {
+        const { dataPenelitian, bidang } = await scrapeGS(link);
+        const resultData = {
+          penelitian: dataPenelitian,
+          bidang,
+        };
 
-      if (nip && oldArrDatas?.length) {
-        const uniqueNewArrPenelitian = uniqueArrObj({
-          arr: [...dataPenelitian, ...oldArrDatas],
-          props: "judulPenelitian",
-        });
+        if (nip && oldArrDatas?.length) {
+          const uniqueNewArrPenelitian = uniqueArrObj({
+            arr: [...dataPenelitian, ...oldArrDatas],
+            props: "judulPenelitian",
+          });
 
-        addPenelitian({
-          arrDatas: uniqueNewArrPenelitian?.map((data) => ({
-            ...data,
-            nip,
-          })),
-          where: {
-            nip,
-          },
-        });
+          addPenelitian({
+            arrDatas: uniqueNewArrPenelitian?.map((data) => ({
+              ...data,
+              nip,
+            })),
+            where: {
+              nip,
+            },
+          });
+        }
+        res.status(200).send({ status: 200, data: resultData });
+      } else {
+        throw new Error("Mohon masukkan link google schoolar");
       }
-      res.status(200).send({ status: 200, data: resultData });
-    } else {
-      throw new Error("Mohon masukkan link google schoolar");
+    } catch (e) {
+      errResponse({ res, e: "Link google scholar tidak sesuai" });
     }
-  } catch (e) {
-    errResponse({ res, e: "Link google scholar tidak sesuai" });
   }
-});
+);
 
-router.post("/scrapeSIPEG", verifyJWT, forbiddenResponse, async (req, res) => {
-  const { nip } = req.body;
+router.post(
+  "/scrapeSIPEG",
+  verifyJWT,
+  //  forbiddenResponse
+  allowHelp,
+  async (req, res) => {
+    const { nip } = req.body;
 
-  try {
-    if (nip) {
-      const { name, jabatan, pendidikan } = await scrapeSIPEG(nip);
+    try {
+      if (nip) {
+        const { name, jabatan, pendidikan } = await scrapeSIPEG(nip);
 
-      const resultData = {
-        name,
-        jabatan,
-        pendidikan,
-      };
+        const resultData = {
+          name,
+          jabatan,
+          pendidikan,
+        };
 
-      res.status(200).send({ status: 200, data: resultData });
-    } else {
-      throw new Error("Mohon Masukkan NIP");
+        res.status(200).send({ status: 200, data: resultData });
+      } else {
+        throw new Error("Mohon Masukkan NIP");
+      }
+    } catch (e) {
+      errResponse({ res, e: "NIP tidak ditemukan" });
     }
-  } catch (e) {
-    errResponse({ res, e: "NIP tidak ditemukan" });
   }
-});
+);
 
 router.post(
   "/getSourcePenelitian",
