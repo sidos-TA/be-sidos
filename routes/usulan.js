@@ -24,7 +24,7 @@ const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
 const forbiddenResponseDosen = require("../helpers/forbiddenResponseDosen");
 const { jaccardSimilarityHandler } = require("../spk_module/Winnowing");
-const { uniqueArrObj } = require("../helpers/uniqueArr_ArrObj");
+const { uniqueArrObj, uniqueArr } = require("../helpers/uniqueArr_ArrObj");
 const sortArrObj = require("../helpers/sortArrObj");
 
 // -READ-
@@ -35,13 +35,6 @@ router?.post("/getSPK", async (req, res) => {
       model: setting,
     });
     const arrSetting = JSON.parse(JSON.stringify(getSetting));
-
-    const objSearch = filterByKey({ req });
-
-    delete objSearch["usePaginate"];
-    delete objSearch["showRoles"];
-    delete objSearch["semester"];
-    delete objSearch["tahun"];
 
     const attrDosen = ["name", "nip", "sks", "jabatan", "pendidikan"];
 
@@ -68,6 +61,7 @@ router?.post("/getSPK", async (req, res) => {
         semester: semester || arrSetting?.[0]?.semester || "",
         tahun: tahun || arrSetting?.[0]?.tahun || "",
       },
+      usePaginate: false,
     });
     const getUsulanMhsBimbing = await readFn({
       model: usulan,
@@ -77,6 +71,7 @@ router?.post("/getSPK", async (req, res) => {
         semester: semester || arrSetting?.[0]?.semester || "",
         tahun: tahun || arrSetting?.[0]?.tahun || "",
       },
+      usePaginate: false,
     });
 
     const arrDatasDosen = JSON.parse(JSON.stringify(getDatasDosen));
@@ -466,7 +461,7 @@ router.post("/getDetailUsulan", verifyJWT, async (req, res) => {
           no_bp: objDatasMhs?.no_bp,
           statusUsulan: objDatasMhs?.usulans?.[0]?.status_usulan,
           mhs_name: objDatasMhs?.name,
-          bidang: objDatasMhs?.usulans?.[0]?.bidang,
+          bidangs: objDatasMhs?.usulans?.[0]?.bidang,
           // jdl_from_dosen: objDatasMhs?.usulans?.[0]?.jdl_from_dosen,
           judul: objDatasMhs?.usulans?.[0]?.judul,
           file_pra_proposal: objDatasMhs?.usulans?.[0]?.file_pra_proposal,
@@ -629,65 +624,86 @@ router.post(
         getDataMhs?.prodi
       }/${objSetting?.tahun?.replace("/", "_")}_${objSetting?.semester}`;
 
-      await sequelize.transaction(async (transaction) => {
-        await multipleFn({
-          model: usulan,
-          arrDatas,
-          type: "add",
-          isTransaction: true,
-          transaction,
-        });
-      });
+      // await sequelize.transaction(async (transaction) => {
+      //   await multipleFn({
+      //     model: usulan,
+      //     arrDatas,
+      //     type: "add",
+      //     isTransaction: true,
+      //     transaction,
+      //   });
+      // });
 
-      cloudinary.v2.api
-        .resources({
-          prefix: folderCloudinary,
-          type: "upload",
-        })
-        ?.then(async ({ resources }) => {
-          // ambil public_id dari cloudinary
-          const arrPubIdCloudinary = resources?.map((data) => {
-            const publicIdSplitted = data?.public_id?.split("/");
-            return publicIdSplitted?.[publicIdSplitted?.length - 1];
-          });
+      multipleFn({
+        model: usulan,
+        arrDatas,
+        type: "add",
+      })?.then(() => {
+        cloudinary.v2.api
+          .resources({
+            prefix: folderCloudinary,
+            type: "upload",
+          })
+          ?.then(async ({ resources }) => {
+            // ambil public_id dari cloudinary
+            const arrPubIdCloudinary = resources?.map((data) => {
+              const publicIdSplitted = data?.public_id?.split("/");
+              return publicIdSplitted?.[publicIdSplitted?.length - 1];
+            });
 
-          // fetch all usulans by semester and tahun after add new usulan
-          const getUsulanSemesterTahun = await readFn({
-            model: usulan,
-            where: {
-              semester: objSetting?.semester,
-              tahun: objSetting?.tahun,
-            },
-            type: "all",
-          });
+            // fetch all usulans by semester and tahun after add new usulan
+            const getUsulanSemesterTahun = await readFn({
+              model: usulan,
+              where: {
+                semester: objSetting?.semester,
+                tahun: objSetting?.tahun,
+              },
+              usePaginate: false,
+              type: "all",
+            });
 
-          const arrUsulanBySmstrThn = JSON.parse(
-            JSON.stringify(getUsulanSemesterTahun)
-          );
+            const arrUsulanBySmstrThn = JSON.parse(
+              JSON.stringify(getUsulanSemesterTahun)
+            );
 
-          // cari pub_id mana saja yg udh g kepake oleh si arrUsulanBySmstrThn
-          const arrUnusedPubId = [];
+            // cari pub_id mana saja yg udh g kepake oleh si arrUsulanBySmstrThn
+            const arrUnusedPubId = [];
 
-          arrUsulanBySmstrThn?.forEach((data) => {
-            const arrDataPraProposalSplit = data?.file_pra_proposal?.split("/");
-            const pubId =
-              arrDataPraProposalSplit?.[arrDataPraProposalSplit?.length - 1];
-            const pubIdNoExt = pubId?.split(".")?.[0];
+            const pubIdUsulan = {};
+            arrUsulanBySmstrThn?.forEach((data) => {
+              const arrDataPraProposalSplit =
+                data?.file_pra_proposal?.split("/");
+              const pubId =
+                arrDataPraProposalSplit?.[arrDataPraProposalSplit?.length - 1];
+              const pubIdNoExt = pubId?.split(".")?.[0];
 
-            arrPubIdCloudinary?.forEach((pubIdCdn) => {
-              if (pubIdNoExt !== pubIdCdn) {
-                arrUnusedPubId?.push(pubIdCdn);
+              pubIdUsulan[pubIdNoExt] = true;
+
+              // arrPubIdCloudinary?.forEach((pubIdCdn) => {
+              //   if (pubIdNoExt !== pubIdCdn) {
+              //     arrUnusedPubId?.push(pubIdCdn);
+              //   }
+              // });
+            });
+
+            arrPubIdCloudinary?.forEach((pubIdCld) => {
+              if (!(pubIdCld in pubIdUsulan)) {
+                arrUnusedPubId?.push(pubIdCld);
               }
+            });
+
+            // const uniqueUnusedPubId = uniqueArr({ arr: arrUnusedPubId });
+
+            // delete yg udah g kepake
+            arrUnusedPubId?.forEach((pubId) => {
+              cloudinary.v2.uploader.destroy(`${folderCloudinary}/${pubId}`);
             });
           });
 
-          // delete yg udah g kepake
-          arrUnusedPubId?.forEach((pubId) => {
-            cloudinary.v2.uploader.destroy(`${folderCloudinary}/${pubId}`);
-          });
-        });
-
-      res?.status(200)?.send({ status: 200, message: "Sukses nambah usulan" });
+        res
+          ?.status(200)
+          ?.send({ status: 200, message: "Sukses nambah usulan" });
+      });
     } catch (e) {
       errResponse({ res, e });
 
