@@ -92,6 +92,9 @@ router.post(
   verifyJWT,
   async (req, res) => {
     const { prodi, tahun, semester, judul, no_bp } = req.body;
+
+    const patternPunctuation = /[^\w\s]|_/g;
+    const punctuation_judul = judul?.replaceAll(patternPunctuation, " ");
     try {
       await uploadPraProposalHandler({
         req,
@@ -102,7 +105,9 @@ router.post(
         )}_${semester}`,
         cloudinaryConfig: {
           transformation: {
-            flags: `attachment:${no_bp}_${judul || "judul masih kosong"}`,
+            flags: `attachment:${no_bp}_${
+              punctuation_judul || "judul masih kosong"
+            }`,
 
             fetch_format: "pdf",
           },
