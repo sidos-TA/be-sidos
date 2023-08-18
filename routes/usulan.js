@@ -677,12 +677,6 @@ router.post(
               const pubIdNoExt = pubId?.split(".")?.[0];
 
               pubIdUsulan[pubIdNoExt] = true;
-
-              // arrPubIdCloudinary?.forEach((pubIdCdn) => {
-              //   if (pubIdNoExt !== pubIdCdn) {
-              //     arrUnusedPubId?.push(pubIdCdn);
-              //   }
-              // });
             });
 
             arrPubIdCloudinary?.forEach((pubIdCld) => {
