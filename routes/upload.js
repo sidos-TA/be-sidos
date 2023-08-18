@@ -60,6 +60,7 @@ router.post(
     }
   }
 );
+
 router.post(
   "/uploadImageDsnPhoto",
   verifyJWT,
@@ -91,10 +92,13 @@ router.post(
   upload.single("pra_proposal"),
   verifyJWT,
   async (req, res) => {
-    const { prodi, tahun, semester, judul, no_bp } = req.body;
+    const { prodi, tahun, semester, judul = "", no_bp } = req.body;
 
     const patternPunctuation = /[^\w\s]|_/g;
-    const punctuation_judul = judul?.replaceAll(patternPunctuation, " ");
+    const punctuation_judul = judul
+      ?.replaceAll(patternPunctuation, " ")
+      ?.substring(0, 30);
+
     try {
       await uploadPraProposalHandler({
         req,
@@ -116,7 +120,7 @@ router.post(
         additionalResProps: ["secure_url", "original_filename"],
       });
     } catch (e) {
-      errResponse({ res, e });
+      errResponse({ res, e: e?.message });
     }
 
     fs.access(`download_file/${req?.file?.originalname}`, (err) => {

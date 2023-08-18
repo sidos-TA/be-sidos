@@ -30,18 +30,17 @@ const router = require("./router");
 
 // -READ-
 router.post("/getAllDosen", verifyJWT, async (req, res) => {
-  const {
-    page,
-    usePaginate = true,
-    showRoles = false,
-    semester,
-    tahun,
-  } = req.body;
+  const { page, showRoles = false, semester, tahun } = req.body;
   try {
     const getSetting = await readFn({
       model: setting,
     });
     const arrSetting = JSON.parse(JSON.stringify(getSetting));
+
+    const objSearchDosen = filterByKey({
+      req,
+      arrSearchParams: ["name", "jabatan", "pendidikan"],
+    });
 
     const showRolesAttr = showRoles
       ? ["name", "nip", "sks", "jabatan", "pendidikan", "roles"]
@@ -62,6 +61,7 @@ router.post("/getAllDosen", verifyJWT, async (req, res) => {
       page,
       usePaginate: false,
       attributes: showRolesAttr,
+      where: objSearchDosen,
     });
     const getUsulanMhsUsul = await readFn({
       model: usulan,
