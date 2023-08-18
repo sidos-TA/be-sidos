@@ -57,17 +57,19 @@ const uploadPhotoHandler = async ({
           const arrUnusedPubId = [];
 
           // cari pub_id mana saja yg udh g kepake oleh si arrDatas
+          const pubIdPhoto = {};
           arrDatas?.forEach((data) => {
             const arrDataPhotoSplitted = data?.photo?.split("/");
             const pubId =
               arrDataPhotoSplitted?.[arrDataPhotoSplitted?.length - 1];
             const pubIdNoExt = pubId?.split(".")?.[0];
+            pubIdPhoto[pubIdNoExt] = true;
+          });
 
-            arrPubIdCloudinary?.forEach((pubIdCdn) => {
-              if (pubIdNoExt !== pubIdCdn) {
-                arrUnusedPubId?.push(pubIdCdn);
-              }
-            });
+          arrPubIdCloudinary?.forEach((pubIdCdn) => {
+            if (!pubIdPhoto[pubIdCdn]) {
+              arrUnusedPubId?.push(pubIdCdn);
+            }
           });
 
           // delete yg udah g kepake
