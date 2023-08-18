@@ -140,7 +140,7 @@ router?.post("/getSPK", async (req, res) => {
             penelitian?.judulPenelitian?.trim()
           ),
           SKS: data?.sks,
-          // nMhs: data?.n_mhs_usulan,
+          nMhs: data?.n_mhs_usulan,
           keahlian: data?.bidangs
             ?.map((bidangData) => bidangData?.bidang)
             .includes(bidang)
@@ -177,7 +177,6 @@ router?.post("/getSPK", async (req, res) => {
       res.status(200).send({
         status: 200,
         data: dataDosenBySPK,
-        arrDsnDataForSPK,
       });
     } else {
       errResponse({
@@ -461,7 +460,7 @@ router.post("/getDetailUsulan", verifyJWT, async (req, res) => {
           no_bp: objDatasMhs?.no_bp,
           statusUsulan: objDatasMhs?.usulans?.[0]?.status_usulan,
           mhs_name: objDatasMhs?.name,
-          bidangs: objDatasMhs?.usulans?.[0]?.bidang,
+          bidang: objDatasMhs?.usulans?.[0]?.bidang,
           // jdl_from_dosen: objDatasMhs?.usulans?.[0]?.jdl_from_dosen,
           judul: objDatasMhs?.usulans?.[0]?.judul,
           file_pra_proposal: objDatasMhs?.usulans?.[0]?.file_pra_proposal,

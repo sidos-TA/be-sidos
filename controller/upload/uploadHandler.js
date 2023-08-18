@@ -126,9 +126,12 @@ const uploadPraProposalHandler = async ({
             message: "sukses",
             data: additionalResProps?.length ? resCustom : url.secure_url,
           });
+        })
+        ?.catch((err) => {
+          errResponse({ res, e: err?.message });
         });
     } else {
-      errResponse({ res, e: "File gambar setidaknya kurang dari 200kb" });
+      errResponse({ res, e: "File pra proposal setidaknya kurang dari 200kb" });
     }
   } else {
     res.end();
