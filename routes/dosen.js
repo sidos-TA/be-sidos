@@ -15,6 +15,7 @@ const deleteFn = require("../helpers/mainFn/deleteFn");
 const multipleFn = require("../helpers/mainFn/multipleFn");
 const readFn = require("../helpers/mainFn/readFn");
 const updateFn = require("../helpers/mainFn/updateFn");
+const sortArrObj = require("../helpers/sortArrObj");
 const { uniqueArrObj } = require("../helpers/uniqueArr_ArrObj");
 const verifyJWT = require("../helpers/verifyJWT");
 const {
@@ -30,7 +31,13 @@ const router = require("./router");
 
 // -READ-
 router.post("/getAllDosen", verifyJWT, async (req, res) => {
-  const { page, showRoles = false, semester, tahun } = req.body;
+  const {
+    page,
+    showRoles = false,
+    semester,
+    tahun,
+    usePaginate = true,
+  } = req.body;
   try {
     const getSetting = await readFn({
       model: setting,
@@ -53,12 +60,12 @@ router.post("/getAllDosen", verifyJWT, async (req, res) => {
         semester: semester || arrSetting?.[0]?.semester || "",
         tahun: tahun || arrSetting?.[0]?.tahun || "",
       },
+      usePaginate: false,
     };
 
     const getDatas = await readFn({
       model: dosen,
       type: "all",
-      page,
       usePaginate: false,
       attributes: showRolesAttr,
       where: objSearchDosen,
@@ -67,6 +74,7 @@ router.post("/getAllDosen", verifyJWT, async (req, res) => {
       model: usulan,
       attributes: ["nip", "status_judul", "status_usulan"],
       include: mhsObjModel,
+      usePaginate: false,
     });
     const getUsulanMhsBimbing = await readFn({
       model: usulan,
@@ -75,6 +83,7 @@ router.post("/getAllDosen", verifyJWT, async (req, res) => {
       where: {
         status_usulan: "confirmed",
       },
+      usePaginate: false,
     });
 
     const arrDatas = JSON.parse(JSON.stringify(getDatas));
@@ -110,9 +119,23 @@ router.post("/getAllDosen", verifyJWT, async (req, res) => {
       }, {})
     );
 
+    const pageSize = page * 10;
+    const sortResult = sortArrObj({ arr: result, props: "name" });
+    const datasDosen = sortResult?.slice(pageSize - 10, pageSize);
+
     res.status(200).send({
       status: 200,
-      data: result,
+      // data: result,
+      data: usePaginate
+        ? Object.keys(objSearchDosen)?.length
+          ? sortResult?.filter((data) => data?.name)
+          : datasDosen?.filter((data) => data?.name)
+        : result,
+      ...(usePaginate && {
+        countAllDatas: Object.keys(objSearchDosen)?.length
+          ? sortResult?.filter((data) => data?.name)?.length
+          : result?.length,
+      }),
     });
   } catch (e) {
     errResponse({ res, e });
@@ -190,7 +213,11 @@ router.post("/scrapeSINTA", async (req, res) => {
     const dataGSSINTA = await scrapeSINTA(link);
 
     const resultData = {
-      penelitian: dataGSSINTA?.dataPenelitian,
+      penelitian: sortArrObj({
+        arr: dataGSSINTA?.dataPenelitian,
+        props: "tahun",
+        sortType: "DESC",
+      }),
       bidang: dataGSSINTA?.bidang,
     };
 
@@ -244,7 +271,11 @@ router.post(
       ) {
         const { dataPenelitian, bidang } = await scrapeGS(link);
         const resultData = {
-          penelitian: dataPenelitian,
+          penelitian: sortArrObj({
+            arr: dataPenelitian,
+            props: "tahun",
+            sortType: "DESC",
+          }),
           bidang,
         };
 
@@ -410,31 +441,96 @@ router.post(
     delete dataDosen["bidang"];
 
     try {
-      dosen.addHook("afterCreate", async (_, options) => {
-        await multipleFn({
-          model: penelitian,
-          arrDatas: penelitianReqData,
-          transaction: options?.transaction,
-        });
+      // dosen.addHook("afterCreate", async (_, options) => {
+      //   penelitianReqData?.forEach((pnltn) => {
+      //     createFn({
+      //       model: penelitian,
+      //       data: pnltn,
+      //       isTransaction: true,
+      //       transaction: options.transaction,
+      //     });
+      //   });
+      //   bidangReqData?.forEach((bdg) => {
+      //     createFn({
+      //       model: penelitian,
+      //       data: bdg,
+      //       isTransaction: true,
+      //       transaction: options.transaction,
+      //     });
+      //   });
+      //   // await multipleFn({
+      //   //   model: penelitian,
+      //   //   arrDatas: penelitianReqData,
+      //   //   transaction: options?.transaction,
+      //   //   type: "update",
+      //   // });
 
-        await multipleFn({
-          model: bidang,
-          arrDatas: bidangReqData,
-          transaction: options?.transaction,
-        });
-      });
+      //   // await multipleFn({
+      //   //   model: bidang,
+      //   //   arrDatas: bidangReqData,
+      //   //   transaction: options?.transaction,
+      //   //   type: "update",
+      //   // });
+      //   res
+      //     ?.status(200)
+      //     ?.send({ status: 200, message: "Sukses nambah data dosen" });
+      // });
 
-      await sequelize.transaction(async (transaction) => {
-        await createFn({
-          data: { ...req?.body, password: hashPassword, id: uuid() },
-          model: dosen,
-          transaction,
+      // await sequelize.transaction(async (transaction) => {
+      //   await createFn({
+      //     data: { ...req?.body, password: hashPassword, id: uuid() },
+      //     model: dosen,
+      //     transaction,
+      //   });
+      // });
+
+      createFn({
+        data: { ...req?.body, password: hashPassword, id: uuid() },
+        model: dosen,
+      })
+        ?.then(async () => {
+          for (let i = 0; i < penelitianReqData?.length; i++) {
+            await createFn({
+              model: penelitian,
+              data: penelitianReqData?.[i],
+            });
+          }
+          // penelitianReqData?.forEach((pnltn) => {
+          // });
+
+          for (let i = 0; i < bidangReqData?.length; i++) {
+            await createFn({
+              model: bidang,
+              data: bidangReqData?.[i],
+            });
+          }
+          // bidangReqData?.forEach((bdg) => {
+          //   await createFn({
+          //     model: penelitian,
+          //     data: bdg,
+          //   });
+          // });
+          res
+            ?.status(200)
+            ?.send({ status: 200, message: "Sukses nambah data dosen" });
+        })
+        ?.catch((e) => {
+          // if (e?.parent?.code === "ER_DUP_ENTRY") {
+          //   errResponse({
+          //     res,
+          //     e: `Data dengan nip ${req.body.nip} telah ada`,
+          //   });
+          // } else {
+          //   errResponse({ res, e });
+          // }
+          errResponse({ res, e });
         });
-      });
-      res
-        ?.status(200)
-        ?.send({ status: 200, message: "Sukses nambah data dosen" });
     } catch (e) {
+      // if (e?.parent?.code === "ER_DUP_ENTRY") {
+      //   errResponse({ res, e: `Data dengan nip ${req.body.nip} telah ada` });
+      // } else {
+      //   errResponse({ res, e });
+      // }
       errResponse({ res, e });
     }
   }

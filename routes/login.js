@@ -51,6 +51,8 @@ router.post("/login", async (req, res) => {
               [nipOrnobp]: dataType?.[nipOrnobp],
               ...(nipOrnobp === "no_bp" && {
                 prodi: dataType?.prodi,
+                semester: dataType?.semester,
+                tahun: dataType?.tahun,
               }),
             },
             process.env.JWT_SECRET_KEYS,

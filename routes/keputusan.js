@@ -7,6 +7,7 @@ const readFn = require("../helpers/mainFn/readFn");
 const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
 const filterByKey = require("../helpers/filterByKey");
+const createFn = require("../helpers/mainFn/createFn");
 
 router.post("/addKeputusan", verifyJWT, forbiddenResponse, async (req, res) => {
   const { no_bp, nip, id_usulan } = req.body;
@@ -24,6 +25,27 @@ router.post("/addKeputusan", verifyJWT, forbiddenResponse, async (req, res) => {
 
     const arrDatasUsulan = JSON.parse(JSON.stringify(getDataUsulan));
 
+    // kalau ada perubahan/tambahan dospem oleh kaprodi setelah diusulkan oleh mhs
+    const addAfterSPK = async () => {
+      for (let i = 0; i < nip?.length; i++) {
+        if (
+          !arrDatasUsulan?.find(
+            (data) => String(data?.nip) === String(nip?.[i])
+          )
+        ) {
+          await createFn({
+            model: usulan,
+            data: {
+              ...req?.body,
+              nip: nip?.[i],
+              status_usulan: "confirmed",
+              status_judul: "usulan",
+            },
+          });
+        }
+      }
+    };
+
     const arrDosenNotChoosed = arrDatasUsulan?.filter(
       (usul) => !nip?.includes(usul?.nip)
     );
@@ -37,6 +59,8 @@ router.post("/addKeputusan", verifyJWT, forbiddenResponse, async (req, res) => {
         id_usulan,
       },
     });
+
+    await addAfterSPK();
 
     await updateFn({
       model: usulan,
@@ -134,6 +158,16 @@ router.post("/getDetailKeputusan", verifyJWT, async (req, res) => {
 
     const objUsulanDetail = JSON.parse(JSON.stringify(getUsulanDetail));
 
+    const getDatasDosen = await readFn({
+      model: dosen,
+      attributes: ["name"],
+      where: {
+        nip: objUsulanDetail?.jdl_from_dosen,
+      },
+      type: "find",
+    });
+    const objDatasDosen = JSON.parse(JSON.stringify(getDatasDosen));
+
     const getDataKeputusan = await readFn({
       model: mhs,
       type: "find",
@@ -166,7 +200,11 @@ router.post("/getDetailKeputusan", verifyJWT, async (req, res) => {
 
     const objDataKeputusan = JSON.parse(JSON.stringify(getDataKeputusan));
 
-    const objDatas = { ...objDataKeputusan, ...objUsulanDetail };
+    const objDatas = {
+      ...objDataKeputusan,
+      ...objUsulanDetail,
+      jdl_from_dsn_name: objDatasDosen?.name,
+    };
     res.status(200).send({
       status: 200,
       data: objDatas,
