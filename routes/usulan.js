@@ -30,6 +30,7 @@ const {
 const { uniqueArrObj, uniqueArr } = require("../helpers/uniqueArr_ArrObj");
 const sortArrObj = require("../helpers/sortArrObj");
 const { Op } = require("sequelize");
+const Winnowing = require("../spk_module/Winnowing");
 
 // -READ-
 router?.post("/getSPK", async (req, res) => {
@@ -295,6 +296,99 @@ router.post("/getUsulan", verifyJWT, async (req, res) => {
     }
   } catch (e) {
     errResponse({ res, e });
+  }
+});
+
+router.post("/getJudulPenelitian", async (req, res) => {
+  const { judul, kGram = 3, window = 5 } = req.body;
+  try {
+    const getDatasPenelitian = await readFn({
+      model: penelitian,
+      attributes: ["judulPenelitian", "nip"],
+      usePaginate: false,
+    });
+
+    const getDatasDosen = await readFn({
+      model: dosen,
+      attrDosen: ["nip", "name"],
+      usePaginate: false,
+    });
+
+    const arrDatasPenelitian = JSON.parse(JSON.stringify(getDatasPenelitian));
+    const arrDatasDosen = JSON.parse(JSON.stringify(getDatasDosen));
+
+    const objTempPenelitianDosen = {};
+
+    arrDatasDosen?.forEach((dsn) => {
+      objTempPenelitianDosen[dsn?.nip] = {
+        nip: dsn?.nip,
+        dosenName: dsn?.name,
+      };
+    });
+
+    arrDatasPenelitian?.forEach((pnltn) => {
+      if (objTempPenelitianDosen?.[pnltn?.nip]) {
+        ///
+        objTempPenelitianDosen[pnltn?.nip] = {
+          ...objTempPenelitianDosen?.[pnltn?.nip],
+          judulPenelitian: arrDatasPenelitian
+            ?.filter((data) => data?.nip === pnltn?.nip)
+            ?.map((data) => data?.judulPenelitian),
+        };
+        ///
+      }
+    });
+    const arrPenelitianDosen = Object.values(objTempPenelitianDosen);
+
+    const arrWinnowingValue = Winnowing.allWinnowingDosen({
+      dataPenelitian: arrPenelitianDosen,
+      strJudulMhs: judul,
+      kGramCount: kGram,
+      windowCount: window,
+    });
+
+    const kGramHandler = Winnowing?.arrKGramHandler({
+      str: judul,
+      kGramCount: kGram,
+    });
+
+    const windowJdlMhs = Winnowing?.windowHandler({
+      kGramCount: kGram,
+      str: judul,
+      windowCount: window,
+    });
+
+    const fingerPrintHandler = Winnowing?.fingerPrintHandler({
+      kGramCount: kGram,
+      str: judul,
+      windowCount: window,
+    });
+
+    const roundUp2 = (num = 0) =>
+      Math.ceil(num * Math.pow(10, 2)) / Math.pow(10, 2);
+
+    res.status(200)?.send({
+      status: 200,
+      data: {
+        arrWinowing: sortArrObj({
+          arr: arrWinnowingValue,
+          props: "winnowingValue",
+          sortType: "DESC",
+        })?.map((data) => ({
+          ...data,
+          winnowingValue: roundUp2(data?.winnowingValue),
+        })),
+        arrKGram: kGramHandler,
+        windowJdlMhs,
+        fingerPrintHandler,
+      },
+    });
+
+    // const arrWinnowingResult = allWinnowingDosen({
+    //   dataPenelitian,
+    // });
+  } catch (e) {
+    errResponse({ e, res });
   }
 });
 

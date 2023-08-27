@@ -59,6 +59,7 @@ router.post("/getTahun", async (req, res) => {
       model: tahuns,
       attributes: ["tahun"],
       order: [["tahun", "ASC"]],
+      usePaginate: false,
     });
     res?.status(200).send({ status: 200, data: getSettingTahun });
   } catch (e) {
@@ -99,6 +100,7 @@ router.post(
       const getDataTahun = await readFn({
         model: tahuns,
         isExcludeId: false,
+        usePaginate: false,
       });
       const arrDataTahun = JSON.parse(JSON.stringify(getDataTahun));
 
