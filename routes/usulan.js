@@ -23,9 +23,14 @@ const filterByKey = require("../helpers/filterByKey");
 const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
 const forbiddenResponseDosen = require("../helpers/forbiddenResponseDosen");
-const { jaccardSimilarityHandler } = require("../spk_module/Winnowing");
+const {
+  jaccardSimilarityHandler,
+  allWinnowingDosen,
+} = require("../spk_module/Winnowing");
 const { uniqueArrObj, uniqueArr } = require("../helpers/uniqueArr_ArrObj");
 const sortArrObj = require("../helpers/sortArrObj");
+const { Op } = require("sequelize");
+const Winnowing = require("../spk_module/Winnowing");
 
 // -READ-
 router?.post("/getSPK", async (req, res) => {
@@ -68,6 +73,9 @@ router?.post("/getSPK", async (req, res) => {
       attributes: ["nip", "status_judul", "status_usulan"],
       where: {
         status_usulan: "confirmed",
+        status_judul: {
+          [Op.ne]: "usulan",
+        },
         semester: semester || arrSetting?.[0]?.semester || "",
         tahun: tahun || arrSetting?.[0]?.tahun || "",
       },
@@ -143,18 +151,29 @@ router?.post("/getSPK", async (req, res) => {
           nMhs: data?.n_mhs_usulan,
           keahlian: data?.bidangs
             ?.map((bidangData) => bidangData?.bidang)
-            .includes(bidang)
+            ?.some((bdg) => bdg?.toLowerCase()?.includes(bidang?.toLowerCase()))
             ? 1
             : 0,
+          // keahlian: data?.bidangs
+          //   ?.map((bidangData) => bidangData?.bidang?.toLowerCase())
+          //   .includes(bidang?.toLowerCase())
+          //   ? 1
+          //   : 0,
           jbtn: arrJabatanDatas?.find(
             (jbtn) => jbtn?.jabatan === data?.jabatan?.toLowerCase()
           )?.point,
           pend: arrPendidikanValue?.find(
             (pend) => pend?.pendidikan === data?.pendidikan?.toLowerCase()
           )?.point,
-          isJudulDriDosen:
-            jdl_from_dosen?.toLowerCase() === data?.nip?.toLowerCase() ? 2 : 1,
+          isJudulDriDosen: jdl_from_dosen === data?.nip ? 2 : 1,
         };
+      });
+
+      const arrWinnowing = allWinnowingDosen({
+        dataPenelitian: arrDsnDataForSPK,
+        strJudulMhs: judul,
+        kGramCount: 3,
+        windowCount: 11,
       });
 
       const spkResult = EDAS_Winnowing({
@@ -174,9 +193,22 @@ router?.post("/getSPK", async (req, res) => {
         });
       });
 
+      const roundUp2 = (num = 0) =>
+        Math.ceil(num * Math.pow(10, 2)) / Math.pow(10, 2);
+
       res.status(200).send({
         status: 200,
         data: dataDosenBySPK,
+        arrDsnDataForSPK,
+        arrWinnowing: sortArrObj({
+          arr: arrWinnowing,
+          props: "winnowingValue",
+          sortType: "DESC",
+        })?.map((data) => ({
+          ...data,
+          winnowingValue: roundUp2(data?.winnowingValue),
+        })),
+        result,
       });
     } else {
       errResponse({
@@ -190,9 +222,12 @@ router?.post("/getSPK", async (req, res) => {
 });
 
 router.post("/getUsulan", verifyJWT, async (req, res) => {
-  const { no_bp, semester, tahun } = req.body;
+  const { no_bp, semester, tahun, page } = req.body;
   try {
-    const objSearchMhs = filterByKey({ req, arrSearchParams: ["prodi"] });
+    const objSearchMhs = filterByKey({
+      req,
+      arrSearchParams: ["name", "prodi"],
+    });
     const objSearchUsulan = filterByKey({
       req,
       arrSearchParams: ["bidang"],
@@ -237,14 +272,21 @@ router.post("/getUsulan", verifyJWT, async (req, res) => {
           semester: semester || objSetting?.semester || "",
           tahun: tahun || objSetting?.tahun || "",
         },
+        usePaginate: false,
         group: ["judul"],
       });
 
       const arrDatasUsulan = JSON.parse(JSON.stringify(getDatasUsulan));
 
+      const pageSize = page * 10;
+
+      const datasUsulan = arrDatasUsulan?.slice(pageSize - 10, pageSize);
+
       res.status(200).send({
         status: 200,
-        data: arrDatasUsulan,
+        data: datasUsulan,
+        arrDatasUsulan,
+        countAllDatas: arrDatasUsulan?.length,
       });
     } else {
       errResponse({
@@ -254,6 +296,99 @@ router.post("/getUsulan", verifyJWT, async (req, res) => {
     }
   } catch (e) {
     errResponse({ res, e });
+  }
+});
+
+router.post("/getJudulPenelitian", async (req, res) => {
+  const { judul, kGram = 3, window = 5 } = req.body;
+  try {
+    const getDatasPenelitian = await readFn({
+      model: penelitian,
+      attributes: ["judulPenelitian", "nip"],
+      usePaginate: false,
+    });
+
+    const getDatasDosen = await readFn({
+      model: dosen,
+      attrDosen: ["nip", "name"],
+      usePaginate: false,
+    });
+
+    const arrDatasPenelitian = JSON.parse(JSON.stringify(getDatasPenelitian));
+    const arrDatasDosen = JSON.parse(JSON.stringify(getDatasDosen));
+
+    const objTempPenelitianDosen = {};
+
+    arrDatasDosen?.forEach((dsn) => {
+      objTempPenelitianDosen[dsn?.nip] = {
+        nip: dsn?.nip,
+        dosenName: dsn?.name,
+      };
+    });
+
+    arrDatasPenelitian?.forEach((pnltn) => {
+      if (objTempPenelitianDosen?.[pnltn?.nip]) {
+        ///
+        objTempPenelitianDosen[pnltn?.nip] = {
+          ...objTempPenelitianDosen?.[pnltn?.nip],
+          judulPenelitian: arrDatasPenelitian
+            ?.filter((data) => data?.nip === pnltn?.nip)
+            ?.map((data) => data?.judulPenelitian),
+        };
+        ///
+      }
+    });
+    const arrPenelitianDosen = Object.values(objTempPenelitianDosen);
+
+    const arrWinnowingValue = Winnowing.allWinnowingDosen({
+      dataPenelitian: arrPenelitianDosen,
+      strJudulMhs: judul,
+      kGramCount: kGram,
+      windowCount: window,
+    });
+
+    const kGramHandler = Winnowing?.arrKGramHandler({
+      str: judul,
+      kGramCount: kGram,
+    });
+
+    const windowJdlMhs = Winnowing?.windowHandler({
+      kGramCount: kGram,
+      str: judul,
+      windowCount: window,
+    });
+
+    const fingerPrintHandler = Winnowing?.fingerPrintHandler({
+      kGramCount: kGram,
+      str: judul,
+      windowCount: window,
+    });
+
+    const roundUp2 = (num = 0) =>
+      Math.ceil(num * Math.pow(10, 2)) / Math.pow(10, 2);
+
+    res.status(200)?.send({
+      status: 200,
+      data: {
+        arrWinowing: sortArrObj({
+          arr: arrWinnowingValue,
+          props: "winnowingValue",
+          sortType: "DESC",
+        })?.map((data) => ({
+          ...data,
+          winnowingValue: roundUp2(data?.winnowingValue),
+        })),
+        arrKGram: kGramHandler,
+        windowJdlMhs,
+        fingerPrintHandler,
+      },
+    });
+
+    // const arrWinnowingResult = allWinnowingDosen({
+    //   dataPenelitian,
+    // });
+  } catch (e) {
+    errResponse({ e, res });
   }
 });
 
@@ -308,6 +443,8 @@ router.post("/getDetailUsulan", verifyJWT, async (req, res) => {
             "judul",
             "status_judul",
             "status_usulan",
+            "tahun",
+            "semester",
           ],
           where: {
             id_usulan,
@@ -374,7 +511,7 @@ router.post("/getDetailUsulan", verifyJWT, async (req, res) => {
         ],
         group: ["nip"],
         where: {
-          // "$usulans.status_judul$": { [Op.ne]: ["usulan"] },
+          "$usulans.status_judul$": { [Op.ne]: ["usulan"] },
           "$usulans.status_usulan$": "confirmed",
         },
       });
@@ -452,10 +589,22 @@ router.post("/getDetailUsulan", verifyJWT, async (req, res) => {
         (data) => data?.nip === objDatasMhs?.usulans?.[0]?.jdl_from_dosen
       );
 
+      // query hanya untuk dptkan info tahun dan semester mengenai si usulan
+      const getThnSmster = await readFn({
+        model: usulan,
+        where: {
+          id_usulan,
+        },
+        attributes: ["tahun", "semester"],
+        type: "find",
+      });
+
       res?.status(200)?.send({
         status: 200,
         data: {
           // arrDatas: filterArrDsnBimbingan,
+          tahun: getThnSmster?.tahun,
+          semester: getThnSmster?.semester,
           arrDatas: dataDosenUsulan,
           no_bp: objDatasMhs?.no_bp,
           statusUsulan: objDatasMhs?.usulans?.[0]?.status_usulan,
@@ -517,12 +666,14 @@ router.post("/getSimilaritasJudul", async (req, res) => {
       type: "all",
       usePaginate: false,
       isExcludeId: false,
+      attributes: ["judul"],
     });
 
     const getDataUsulan = await readFn({
       model: usulan,
       usePaginate: false,
       type: "all",
+      attributes: ["judul", "no_bp"],
     });
 
     const getDataSetting = await readFn({
@@ -561,7 +712,11 @@ router.post("/getSimilaritasJudul", async (req, res) => {
 
       res.status(200).send({
         status: 200,
-        data: sortArrObj({ arr: arrWinnowing, props: "skor" }),
+        data: sortArrObj({
+          arr: arrWinnowing,
+          props: "skor",
+          sortType: "DESC",
+        }),
       });
     } else {
       errResponse({ res, e: "Mohon berikan nilai kGram di setting" });

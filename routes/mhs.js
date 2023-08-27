@@ -48,6 +48,7 @@ router.post("/getAllMhs", verifyJWT, forbiddenResponse, async (req, res) => {
         exclude: ["password", "roles"],
       },
       type: "all",
+      order: [["name", "ASC"]],
     });
 
     const getAllDatasMhs = await readFn({
@@ -69,7 +70,7 @@ router.post("/getAllMhs", verifyJWT, forbiddenResponse, async (req, res) => {
     res.status(200).send({
       status: 200,
       data: getDatasMhs,
-      getDatasMhs,
+      // getDatasMhs,
       countAllDatas: arrAllDatasMhs?.length,
     });
   } catch (e) {
@@ -99,6 +100,9 @@ router.post("/getMhsByNoBp", verifyJWT, async (req, res) => {
           semester: semester || objDatasMhs?.semester || "",
           tahun: tahun || "",
           no_bp,
+          status_judul: {
+            [Op.ne]: "usulan",
+          },
         },
         attributes: [
           "no_bp",
@@ -117,7 +121,8 @@ router.post("/getMhsByNoBp", verifyJWT, async (req, res) => {
             attributes: ["name", "photo", "pendidikan", "jabatan"],
           },
         ],
-        paranoid: false,
+
+        // paranoid: false,
       });
 
       const arrUsulanDosen = JSON.parse(JSON.stringify(getUsulan))?.map(
@@ -159,6 +164,14 @@ router.post("/addMhs", verifyJWT, forbiddenResponse, async (req, res) => {
         res?.status(200).send({ status: 200, message: "Sukses nambah data" });
       })
       .catch((e) => {
+        // if (e?.parent?.code === "ER_DUP_ENTRY") {
+        //   errResponse({
+        //     res,
+        //     e: `Data dengan No. Bp ${req.body.no_bp} telah ada`,
+        //   });
+        // } else {
+        //   errResponse({ res, e });
+        // }
         errResponse({ res, e });
       });
   } else {

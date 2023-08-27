@@ -21,6 +21,7 @@ const verifyJWT = require("../helpers/verifyJWT");
 const forbiddenResponse = require("../helpers/forbiddenResponse");
 const updateSttsJudulMhs = require("../controller/bimbingan/addBimbingan/updateSttsJudulMhs");
 const { Op } = require("sequelize");
+const createFn = require("../helpers/mainFn/createFn");
 
 // -READ-
 router.post("/getBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
@@ -124,10 +125,65 @@ router.post("/getBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
 
 // -CREATE-
 router.post("/addBimbingan", verifyJWT, forbiddenResponse, async (req, res) => {
-  const { no_bp, nip, judul, bidang, tingkatan, status_judul, keterangan } =
-    req.body;
+  const {
+    no_bp,
+    nip,
+    judul,
+    bidang,
+    tingkatan,
+    status_judul,
+    keterangan,
+    id_usulan,
+  } = req.body;
   try {
     if (Array.isArray(nip)) {
+      const getDataUsulan = await readFn({
+        model: usulan,
+        where: {
+          id_usulan,
+        },
+        usePaginate: false,
+        isExcludeId: false,
+      });
+
+      const arrDatasUsulan = JSON.parse(JSON.stringify(getDataUsulan));
+      const arrDosenNotChoosed = arrDatasUsulan?.filter(
+        (usul) => !nip?.includes(usul?.nip)
+      );
+
+      const addAfterSPK = async () => {
+        for (let i = 0; i < nip?.length; i++) {
+          if (
+            !arrDatasUsulan?.find(
+              (data) => String(data?.nip) === String(nip?.[i])
+            )
+          ) {
+            await createFn({
+              model: usulan,
+              data: {
+                ...req?.body,
+                nip: nip?.[i],
+                status_usulan: "confirmed",
+                status_judul: "usulan",
+              },
+            });
+          }
+        }
+      };
+
+      // hapus data dosen yang g kepilih
+      await deleteFn({
+        model: usulan,
+        where: {
+          nip: arrDosenNotChoosed?.map((usul) => usul?.nip),
+          no_bp,
+          id_usulan,
+        },
+      });
+
+      // kalau ada perubahan/tambahan dospem berdasarkan hasil rapat
+      await addAfterSPK();
+
       await updateSttsJudulMhs({
         judul,
         no_bp,
