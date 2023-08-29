@@ -300,18 +300,34 @@ router.post("/getUsulan", verifyJWT, async (req, res) => {
 });
 
 router.post("/getJudulPenelitian", async (req, res) => {
-  const { judul, kGram = 3, window = 5 } = req.body;
+  const {
+    judul,
+    kGram = 3,
+    window = 5,
+    nip,
+    isGetAllWinnowing = true,
+  } = req.body;
   try {
     const getDatasPenelitian = await readFn({
       model: penelitian,
       attributes: ["judulPenelitian", "nip"],
       usePaginate: false,
+      ...(nip && {
+        where: {
+          nip,
+        },
+      }),
     });
 
     const getDatasDosen = await readFn({
       model: dosen,
       attrDosen: ["nip", "name"],
       usePaginate: false,
+      ...(nip && {
+        where: {
+          nip,
+        },
+      }),
     });
 
     const arrDatasPenelitian = JSON.parse(JSON.stringify(getDatasPenelitian));
@@ -352,7 +368,7 @@ router.post("/getJudulPenelitian", async (req, res) => {
       kGramCount: kGram,
     });
 
-    const windowJdlMhs = Winnowing?.windowHandler({
+    const windowHandler = Winnowing?.windowHandler({
       kGramCount: kGram,
       str: judul,
       windowCount: window,
@@ -370,17 +386,25 @@ router.post("/getJudulPenelitian", async (req, res) => {
     res.status(200)?.send({
       status: 200,
       data: {
-        arrWinowing: sortArrObj({
-          arr: arrWinnowingValue,
-          props: "winnowingValue",
-          sortType: "DESC",
-        })?.map((data) => ({
-          ...data,
-          winnowingValue: roundUp2(data?.winnowingValue),
-        })),
-        arrKGram: kGramHandler,
-        windowJdlMhs,
-        fingerPrintHandler,
+        ...(nip
+          ? {
+              arrPenelitianDosen,
+            }
+          : {
+              ...(isGetAllWinnowing && {
+                arrWinowing: sortArrObj({
+                  arr: arrWinnowingValue,
+                  props: "winnowingValue",
+                  sortType: "DESC",
+                })?.map((data) => ({
+                  ...data,
+                  winnowingValue: roundUp2(data?.winnowingValue),
+                })),
+              }),
+              arrKGram: kGramHandler,
+              arrWindow: windowHandler,
+              fingerPrintHandler,
+            }),
       },
     });
 
