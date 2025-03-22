@@ -485,7 +485,7 @@ router.post(
       // });
 
       createFn({
-        data: { ...req?.body, password: hashPassword, id: uuid() },
+        data: { ...req?.body, password: hashPassword, id: uuid(), roles: 3 },
         model: dosen,
       })
         ?.then(async () => {
