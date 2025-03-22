@@ -28,6 +28,7 @@ app.use(
       "http://127.0.0.1:5174",
       "https://sidos.vercel.app",
       "https://simple_winnowing_tools.vercel.app",
+      "http://localhost:5173",
     ],
     credentials: true,
     // exposedHeaders: ["set-cookie"],

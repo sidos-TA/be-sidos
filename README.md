@@ -1,3 +1,41 @@
+# Setup
+
+Install all package
+
+```
+npm i --legacy-peer-deps
+```
+
+Delete submodule spk_module
+
+```
+rm -rf spk_module
+```
+
+Add submodule spk_module
+
+```
+git submodule add https://github.com/Restu-Averian/EDAS_Winnowing.git spk_module
+```
+
+Migrate db
+
+```
+npx sequelize-cli db:migrate
+```
+
+Run project
+
+```
+npm start
+```
+
+Access service
+
+```
+http://localhost:3000
+```
+
 # API
 
 API yang udah ada
