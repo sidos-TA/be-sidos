@@ -75,14 +75,43 @@ router.post(
   async (req, res) => {
     const { id } = req.body;
     try {
-      await updateFn({
+      const getDataSetting = await readFn({
         model: setting,
-        data: req.body,
-        where: {
-          id,
-        },
+        isExcludeId: false,
+        type: "all",
+        usePaginate: false,
+        exclude: ["createdAt", "updatedAt"],
       });
-      res.status(200)?.send({ status: 200, message: "Sukses update setting" });
+
+      if (getDataSetting?.length > 0) {
+        await updateFn({
+          model: setting,
+          data: req.body,
+          where: {
+            id,
+          },
+        });
+        res
+          .status(200)
+          ?.send({ status: 200, message: "Sukses update setting" });
+      } else {
+        await createFn({
+          model: setting,
+          data: {
+            // semester: "genap",
+            // tahun: "2022/2023",
+            // kuota_bimbingan: 3,
+            // kGram: 3,
+            // maksimal_usulan: 3,
+            ...(Object.keys(req?.body || {})?.length > 0 && {
+              ...req?.body,
+            }),
+          },
+        });
+        res
+          .status(200)
+          .send({ status: 200, message: "sukses create settings" });
+      }
     } catch (e) {
       errResponse({ e, res });
     }
